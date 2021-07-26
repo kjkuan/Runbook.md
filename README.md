@@ -32,7 +32,7 @@ reporting, runbook logging, ... etc.
        $ runbooks/Example.md  # (pass -h to see help)
 
 
-## How your runbook will be executed
+## How Your Runbook Will be Executed
 Your runbook will be run with `set -eEo pipefail` as well as `shopt -s
 inherit_errexit`.  You should know what that entails, and write your Bash code
 accordingly.
@@ -60,6 +60,11 @@ functions to be executed by the runbook. Logging, by default, also start when
 directly. That is, they cannot be defined else where and then `source`d into
 the runbook. Doing so currently will mess up the task execution order.  This
 restriction might be lifted in the future.
+
+## Other Similar Tools
+- [Blaze](https://github.com/0atman/blaze)
+- [lit](https://github.com/vijithassar/lit)
+- [mdsh](https://github.com/bashup/mdsh)
 
 
 ## Contributing
