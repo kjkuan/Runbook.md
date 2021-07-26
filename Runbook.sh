@@ -22,8 +22,8 @@ if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
         nl -ba
     else
         # feed the generated script to Bash via STDIN, passing the
-        # runbook's basename as $1 followed by the rest of CLI args.
-        exec bash -s "${0##*/}" "$@"
+        # runbook's path as $1 followed by the rest of CLI args.
+        exec bash -s "$0" "$@"
     fi
     exit
 fi
@@ -33,7 +33,7 @@ shopt -s inherit_errexit compat43
 #FIXME: check for bash version to support at least Bash 4.3 as well.
 
 # Save the path to the original runbook file as $0
-BASH_ARGV0=$1; shift
+BASH_ARGV0=$(cd "$(dirname "$1")"; echo "$PWD/${1##*/}"); shift
 
 RB_LOG_DIR=$PWD/log
 RB_EXIT_CMDs=()
@@ -124,11 +124,11 @@ rb-start-logging () {
     local logfd tstamp=$(date +$tfmt)
     rb-info "Detailed runbook logs can be found in $RB_LOG_DIR/"
 
-    local output_log=$RB_LOG_DIR/$0_$tstamp.log
-    local trace_log=$RB_LOG_DIR/$0_$tstamp.trace
+    local output_log=$RB_LOG_DIR/${0##*/}_$tstamp.log
+    local trace_log=$RB_LOG_DIR/${0##*/}_$tstamp.trace
     touch "$output_log" "$trace_log"
-    ln -nfs "$output_log" "${output_log%/*}/$0.log"
-    ln -nfs "$trace_log" "${trace_log%/*}/$0.trace"
+    ln -nfs "$output_log" "${output_log%/*}/${0##*/}.log"
+    ln -nfs "$trace_log" "${trace_log%/*}/${0##*/}.trace"
 
     exec {logfd}> >(_rb-tstamp-lines $tfmt > "$trace_log")
     BASH_XTRACEFD=$logfd; set -x
