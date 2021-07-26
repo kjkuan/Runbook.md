@@ -1,6 +1,4 @@
-
-[&>/dev/null; touch !---; : ]: # (Please keep this and the HTML comments below)
-<!--- &>/dev/null; rm -f '!---'
+<!--- &>/dev/null : 'Please keep this comment' -------------------------------
 source Runbook.sh RUN "$@"
 ```
 source Runbook.sh
