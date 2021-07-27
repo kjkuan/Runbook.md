@@ -36,7 +36,7 @@ by simply downloading and saving [Runbook.sh](Runbook.sh) to a directory listed
 in your `PATH` environment variable. E.g.,:
 
     url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh 
-    curl "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
+    curl -fSs "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
 
 Now as long as your Markdown file has the header and footer HTML comments as in
 the [Example.md](runbooks/Example.md) runbook, it can be executed as described
