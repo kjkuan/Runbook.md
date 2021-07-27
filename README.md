@@ -38,9 +38,11 @@ in your `PATH` environment variable. E.g.,:
     url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh 
     curl -fSs "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
 
-Now as long as your Markdown file has the header and footer HTML comments as in
-the [Example.md](runbooks/Example.md) runbook, it can be executed as described
-above, no matter where it's located.
+Now as long as your Markdown file has the header and footer comment sections as
+in the [Example.md] runbook, it can be executed as described above, no matter
+where it's located.
+
+[Example.md]: https://raw.githubusercontent.com/kjkuan/Runbook.md/main/runbooks/Example.md
 
 ## How Your Runbook Will be Executed
 Your runbook will be run with `set -eEo pipefail` as well as `shopt -s
