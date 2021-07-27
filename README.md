@@ -16,7 +16,7 @@ reporting, runbook logging, ... etc.
 - Organize your runbook with task functions, which are discrete steps
   that can be procedurally or selectively carried out in a runbook.
 
-## Usage
+## Installation and Usage
 1. Fork this repo.
 2. Start writing your runbook in Markdown! You can put it in the `runbooks/`
    folder, in which there's an [example](runbooks/Example.md) runbook to get you
@@ -31,6 +31,16 @@ reporting, runbook logging, ... etc.
 
        $ runbooks/Example.md  # (pass -h to see help)
 
+Don't want to fork and clone a repo? No problem. You can "install" **Runbook.md**
+by simply downloading and saving [Runbook.sh](Runbook.sh) to a directory listed
+in your `PATH` environment variable. E.g.,:
+
+    url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh 
+    curl "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
+
+Now as long as your Markdown file has the header and footer HTML comments as in
+the [Example.md](runbooks/Example.md)` runbook, it can be executed as described
+above, no matter where it's located.
 
 ## How Your Runbook Will be Executed
 Your runbook will be run with `set -eEo pipefail` as well as `shopt -s

@@ -1,4 +1,5 @@
-<!--- &>/dev/null : 'Please keep this comment' -------------------------------
+[&>/dev/null; touch "!---$$"; : ]: # (Please keep this and the comment below)
+<!---$$ &>/dev/null; rm -f "!---$$"
 source Runbook.sh RUN "$@"
 ```
 source Runbook.sh

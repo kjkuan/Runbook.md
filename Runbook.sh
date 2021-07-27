@@ -80,10 +80,7 @@ rb-dump-stack-trace () {
     echo -ne "$RB_RED"
     while caller $((i++)); do :; done \
       |
-    while read -r line; do
-        file=${line#* * } lineno=${line%% *}
-        func=${line% "$file"} func=${func#$lineno }
-
+    while read -r lineno func file; do
         # Use the runbook file if file is 'main', which is the case when reading
         # the script from STDIN.
         [[ $file != main ]] || file=$0
