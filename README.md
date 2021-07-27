@@ -1,7 +1,7 @@
 # Runbook.md
 **Runbook.md** is a hack to create Bash executable [runbooks] in Markdown; it
 can also be used to write Bash [literate programs] or just executable Markdown
-documents in general. Markdown documents created this way sources **Runbook.md**'s
+documents in general. Markdown documents created this way `source` **Runbook.md**'s
 opinionated script ([Runbook.sh](Runbook.sh)), which provides error
 reporting, runbook logging, ... etc.
 
@@ -39,7 +39,7 @@ in your `PATH` environment variable. E.g.,:
     curl "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
 
 Now as long as your Markdown file has the header and footer HTML comments as in
-the [Example.md](runbooks/Example.md)` runbook, it can be executed as described
+the [Example.md](runbooks/Example.md) runbook, it can be executed as described
 above, no matter where it's located.
 
 ## How Your Runbook Will be Executed
