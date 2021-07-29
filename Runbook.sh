@@ -243,12 +243,12 @@ rb-main () {
     if [[ ${RB_CLI_OPTS[list-tasks]:-} ]]; then
         rb-list-tasks | nl; return
     fi
-    [[ ${RB_CLI_OPTS[log-from-start]:-} ]] || rb-start-logging
 
     set -f; RB_TASKS=($(rb-list-tasks)); set +f
     local task_ranges=${RB_CLI_OPTS[task-list]:-}
     [[ ! $task_ranges ]] || _rb-compute-tasks-range "$task_ranges" ${#RB_TASKS[*]}
 
+    [[ ${RB_CLI_OPTS[log-from-start]:-} ]] || rb-start-logging
     rb-run-tasks
 }
 
