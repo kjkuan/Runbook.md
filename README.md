@@ -6,13 +6,17 @@ source Runbook.sh
 ```
 ----------------------------------------------------------------------------->
 # Runbook.md
+
 **Runbook.md** is a hack to create Bash executable [runbooks] in Markdown; it
 can also be used to write Bash [literate programs] or just executable Markdown
-documents in general. Markdown documents created this way `source` **Runbook.md**'s
-opinionated script ([Runbook.sh](Runbook.sh)), which provides error
-reporting, runbook logging, ... etc.
+documents in general. **Runbook.md** makes your actionable runbooks executable,
+literally.
 
-[runbooks]: https://www.pagerduty.com/resources/learn/what-is-a-runbook/
+Markdown documents created with **Runbook.md** `source` its opinionated script
+([Runbook.sh](Runbook.sh)), which provides error reporting, runbook logging,
+selective task execution, ... etc. 
+
+[runbooks]: https://wa.aws.amazon.com/wellarchitected/2020-07-02T19-33-23/wat.concept.runbook.en.html
 [literate programs]: https://en.wikipedia.org/wiki/Literate_programming
 
 ## Features
@@ -21,7 +25,7 @@ reporting, runbook logging, ... etc.
 - Runbook logging includes both normal output logs, as well as, detailed
   trace logs with all command expansions for ease of debugging and auditing.
 - Organize your runbook with task functions, which are discrete steps
-  that can be procedurally or selectively carried out in a runbook.
+  that can be procedurally or selectively executed with a runbook.
 
 ## Installation and Usage
 1. Fork this repo.
@@ -99,6 +103,7 @@ restriction might be lifted in the future.
 - [Blaze](https://github.com/0atman/blaze)
 - [lit](https://github.com/vijithassar/lit)
 - [mdsh](https://github.com/bashup/mdsh)
+- [Babel](https://orgmode.org/worg/org-contrib/babel/)
 
 
 ## Contributing
