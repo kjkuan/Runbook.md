@@ -1,3 +1,10 @@
+[&>/dev/null; touch "!---$$"; : ]: # (Please keep this and the comment below)
+<!---$$ &>/dev/null; rm -f "!---$$"
+source Runbook.sh RUN "$@"
+```
+source Runbook.sh
+```
+----------------------------------------------------------------------------->
 # Runbook.md
 **Runbook.md** is a hack to create Bash executable [runbooks] in Markdown; it
 can also be used to write Bash [literate programs] or just executable Markdown
@@ -35,14 +42,27 @@ Don't want to fork and clone a repo? No problem. You can "install" **Runbook.md*
 by simply downloading and saving [Runbook.sh](Runbook.sh) to a directory listed
 in your `PATH` environment variable. E.g.,:
 
-    url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh 
+```bash
+read -rp "Install the latest Runbook.md (Y/n)? " </dev/tty
+case ${REPLY,,} in
+  y|yes)
+    url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh
     curl -fSs "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
+    ;;
+  *) echo "Okay, take your time~" ;;
+esac
+```
 
 Now as long as your Markdown file has the header and footer comment sections as
 in the [Example.md] runbook, it can be executed as described above, no matter
 where it's located.
 
 [Example.md]: https://raw.githubusercontent.com/kjkuan/Runbook.md/main/runbooks/Example.md
+
+> **Hint**: Eating our own dogfood, if you `git clone` this repo, you can simply
+> execute this [README.md](README.md) file with Bash from the root of the repo
+> to install **Runbook.md**, like so:  `bash ./README.md`
+
 
 ## How Your Runbook Will be Executed
 Your runbook will be run with `set -eEo pipefail` as well as `shopt -s
@@ -83,3 +103,9 @@ restriction might be lifted in the future.
 Please open issues to discuss about questions / bug reports / feature requests.
 Pull requests are welcome. For major change, please open an issue first to
 discuss what you would like to change.
+
+<!---Please keep this comment-------------------------------------------------
+```
+rb-main "$@"
+```
+----------------------------------------------------------------------------->

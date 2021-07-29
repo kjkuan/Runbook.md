@@ -38,6 +38,7 @@ BASH_ARGV0=$(cd "$(dirname "$1")"; echo "$PWD/${1##*/}"); shift
 RB_LOG_DIR=$PWD/log
 RB_EXIT_CMDs=()
 RB_CLI_ARGS=()
+RB_TASKS=()
 #RB_LOG_LEVEL=
 
 declare -A RB_CLI_OPTS=()
@@ -207,9 +208,13 @@ rb-list-tasks () (
     local func_names; func_names=$(
         declare -F \
           | while read -r line; do echo "${line##* }"; done \
-          | grep ^Task/
+          | grep ^Task/ || true
     )
-    shopt -s extdebug  # To get the line number where a function is defined.
+    [[ $func_names ]] || return 0
+
+    # To get the line number where a function is defined.
+    set -f; shopt -s extdebug
+
     declare -F $func_names \
       | sort -nk2,2 \
       | cut -d' ' -f1
@@ -218,28 +223,16 @@ rb-list-tasks () (
 # Run the Task functions in their definition order.
 #
 rb-run-tasks () {
-    local func_names; func_names=$(
-        declare -F \
-          | while read -r line; do echo "${line##* }"; done \
-          | grep ^Task/
-    )
-    set -f; func_names=($(rb-list-tasks)); set +f
-
-    local task_ranges=${RB_CLI_OPTS[task-list]:-}
-    if [[ $task_ranges ]]; then
-        _rb-compute-tasks-range "$task_ranges" ${#func_names[*]}
-    fi
-
-    local i=1 task
-    for task in "${func_names[@]}"; do
-        if [[ ! $task_ranges || ${RB_TASKS_TO_RUN[$i]:-} ]]; then
+    local i=0 task
+    for task in "${RB_TASKS[@]}"; do
+        (( ++i ))
+        if [[ ! ${RB_CLI_OPTS[task-list]:-} || ${RB_TASKS_TO_RUN[$i]:-} ]]; then
             rb-info "${RB_YELLOW}=== Executing $task (task $i) =========================="
             "$task"
             rb-info "${RB_GREEN}=== Successfully executed $task (task $i) =============="
         else
             rb-info "*** Skipped $task due to unspecified task nubmer: $i ***"
         fi
-        (( i++ ))
     done
 }
 
@@ -250,6 +243,11 @@ rb-main () {
         rb-list-tasks | nl; return
     fi
     [[ ${RB_CLI_OPTS[log-from-start]:-} ]] || rb-start-logging
+
+    set -f; RB_TASKS=($(rb-list-tasks)); set +f
+    local task_ranges=${RB_CLI_OPTS[task-list]:-}
+    [[ ! $task_ranges ]] || _rb-compute-tasks-range "$task_ranges" ${#RB_TASKS[*]}
+
     rb-run-tasks
 }
 
