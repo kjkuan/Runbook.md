@@ -36,7 +36,7 @@ shopt -s inherit_errexit compat43
 BASH_ARGV0=$(cd "$(dirname "$1")"; echo "$PWD/${1##*/}"); shift
 
 RB_LOG_DIR=$PWD/log
-RB_EXIT_CMDs=()
+RB_EXIT_CMDS=()
 RB_CLI_ARGS=()
 RB_TASKS=()
 #RB_LOG_LEVEL=
@@ -103,8 +103,8 @@ rb-run-exit-commands () {
     [[ $STDOUT && $STDERR ]] && exec >&$STDOUT 2>&$STDERR
 
     rb-info "Exiting and cleaning up ..."
-    local i=$(( ${#RB_EXIT_CMDs[*]} - 1))
-    for i in $(seq $i -1 0); do eval "${RB_EXIT_CMDs[$i]}"; done
+    local i=$(( ${#RB_EXIT_CMDS[*]} - 1))
+    for i in $(seq $i -1 0); do eval "${RB_EXIT_CMDS[$i]}"; done
     rb-info "Done."
 }
 trap rb-run-exit-commands EXIT

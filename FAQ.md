@@ -27,3 +27,12 @@ Further more, `$0` of your runbook, in this case, will be set to the absolute pa
 In order for a task function to access the CLI args easily, the `RB_CLI_ARGS` array
 can be used. E.g., you can do: `set -- "${RB_CLI_ARGS[@]}"` inside your task function
 to set the CLI args passed to your runbook script as positional args of the function.
+
+## Q: Something's not right when I set up my own EXIT or ERR trap in my runbook!
+## Answer:
+**Runbook.md** relies on both the `EXIT` and the `ERR` traps it sets up for
+proper error reporting and command logging. If you need to run commands on
+script exit, you can add them to the `RB_EXIT_CMDS` array, and they will be
+executed by **Runbook.md** when your runbook exits. For example:
+
+    RB_EXIT_CMDS+=('echo "End of runbook, ${0##*/}. Bye!"')
