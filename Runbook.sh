@@ -148,6 +148,7 @@ Options:
                         N-   From the N-th task to the last task.
                         N-M  From the N-th task to the M-th task. (M >= N)
                         -M   From the first task to the M-th task.
+                        0    A special case that skips all tasks.
 
     --                Pass the rest of CLI args to the runbook.
 
@@ -178,7 +179,7 @@ rb-parse-options () {   # "$@"
 }
 
 _rb-compute-tasks-range () {
-    local range_regex='^([1-9][0-9]*|[1-9][0-9]*-|-[1-9][0-9]*|[1-9][0-9]*-[1-9][0-9]*)$'
+    local range_regex='^(0|[1-9][0-9]*|[1-9][0-9]*-|-[1-9][0-9]*|[1-9][0-9]*-[1-9][0-9]*)$'
     local range ranges; readarray -td, ranges < <(echo -n "${1:?}")
     local task_count=${2:?}
     for range in "${ranges[@]}"; do

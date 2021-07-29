@@ -93,6 +93,8 @@ directly. That is, they cannot be defined else where and then `source`d into
 the runbook. Doing so currently will mess up the task execution order.  This
 restriction might be lifted in the future.
 
+## See also the [FAQ](FAQ.md)
+
 ## Other Similar Tools
 - [Blaze](https://github.com/0atman/blaze)
 - [lit](https://github.com/vijithassar/lit)
