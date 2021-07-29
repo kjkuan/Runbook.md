@@ -47,7 +47,6 @@ by simply downloading and saving [Runbook.sh](Runbook.sh) to a directory listed
 in your `PATH` environment variable. E.g.,:
 
 ```bash
-RB_EXIT_CMDS+=('echo "End of runbook, ${0##*/}. Bye!"')
 read -rp "Install the latest Runbook.md (Y/n)? " </dev/tty
 case ${REPLY,,} in
   y|yes)
