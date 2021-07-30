@@ -9,6 +9,9 @@
 if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
     shift # the 'RUN'
 
+    # Save the STDIN for later use by the runbook
+    exec {RB_STDIN}<&0; export RB_STDIN
+
     # Invert the Markdown text and the Bash examples in the document, turning it
     # into a Bash script with the examples as code and everything else as comments.
     awk '
@@ -17,9 +20,8 @@ if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
         in_code % 2 == 1   { print }
     ' "$0" \
            |
-    if [[ $1 == dump ]]; then  # special case for debugging purposes
-        # just show the generated script with lines numbered.
-        nl -ba
+    if [[ ${RB_DUMP:-} ]]; then # just show the generated script
+        cat
     else
         # feed the generated script to Bash via STDIN, passing the
         # runbook's path as $1 followed by the rest of CLI args.
@@ -100,7 +102,7 @@ rb-run-exit-commands () {
     # Restore stdout and stderr so that in the case of an interactive Ctrl-C,
     # which would killed the logging child process that we redirected stdout
     # and stderr to, we'd still be able to see some messages.
-    [[ $STDOUT && $STDERR ]] && exec >&$STDOUT 2>&$STDERR
+    [[ $RB_STDOUT && $RB_STDERR ]] && exec >&$RB_STDOUT 2>&$RB_STDERR
 
     rb-info "Exiting and cleaning up ..."
     local i=$(( ${#RB_EXIT_CMDS[*]} - 1))
@@ -116,7 +118,7 @@ _rb-tstamp-lines () {
     done
 }
 rb-start-logging () {
-    exec {STDOUT}>&1 {STDERR}>&2
+    exec {RB_STDOUT}>&1 {RB_STDERR}>&2
     mkdir -p "$RB_LOG_DIR"; RB_LOG_DIR=$(cd "$RB_LOG_DIR" && pwd)
     local tfmt=%Y-%m-%dT%T
     local logfd tstamp=$(date +$tfmt)
@@ -261,7 +263,7 @@ Runbook/confirm-continue-task () {
     } >&2
     local ans
     while true; do
-        read -rp "Runbook.md: Continue ${FUNCNAME[1]} ([Y]es/[S]kip/[Q]uit)? " ans </dev/tty
+        read -u $RB_STDIN -rp "Runbook.md: Continue ${FUNCNAME[1]} ([Y]es/[S]kip/[Q]uit)? " ans
         case ${ans,,} in
           y|yes ) break ;;
           s|skip) rb-info "*** Skipping the rest of ${FUNCNAME[1]} ***"; continue 2 ;;

@@ -1,15 +1,31 @@
 # FAQ
 
+## Q: How can I see the resulting runbook script without executing anything in a runbook?
+## Answer:
+If you set the `RB_DUMP` environment variable to a non-empty string, then, instead
+of executing the runbook, **Runbook.md** will simply dump the generated Bash script
+to standard output. For example, you can get the generated Bash script with source
+lines numbered with:
+
+    RB_DUMP=1 ./my-runbook | nl -ba
+
+
 ## Q: Why reading from STDIN no longer works?
 ## Answer:
-When executing a runbook, the standard input of your runbook process (bash) is
+When executing a runbook, the standard input of your runbook process (`bash`) is
 used for reading the runbook script generated from the Markdown document; therefore,
-reading from STDIN would actually read in parts of the runbook itself!
+reading from `STDIN` would actually read in parts of the runbook itself!
 
-To work around that, you can read from `/dev/tty` if you are running the runbook
-from an interactive console. If you need to redirect your runbook's STDIN, consider
-reading from a file on disk instead; you can pass in the file path as a CLI argument
-(see answer to the next question).
+To work around that, **Runbook.md** redirects `$RB_STDIN` from `STDIN` while it's still
+available, and passes that to the runbook process as an environment variable. As
+a result, to read from `STDIN` in your runbook, you can read from `$RB_STDIN` instead.
+For example, in your runbook, if using `read`, you can do:
+
+    read -rp 'Enter your name: ' -u $RB_STDIN
+
+Or, you can just redirect from `$RB_STDIN`:
+
+    read -rp 'Enter your name: ' <&$RB_STDIN
 
 
 ## Q: How can I pass CLI arguments to my runbook, or to a specific task?

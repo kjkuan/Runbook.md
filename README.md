@@ -47,7 +47,7 @@ by simply downloading and saving [Runbook.sh](Runbook.sh) to a directory listed
 in your `PATH` environment variable. E.g.,:
 
 ```bash
-read -rp "Install the latest Runbook.md (Y/n)? " </dev/tty
+read -u $RB_STDIN -rp "Install the latest Runbook.md (Y/n)? "
 case ${REPLY,,} in
   y|yes)
     url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh
