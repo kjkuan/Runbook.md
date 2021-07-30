@@ -87,12 +87,12 @@ fenced code; however, it's recommended to do any actual work of a runbook in
 task functions rather than directly in the top level of the document.
 
 At the end of the runbook, Bash functions defined *directly* in the runbook,
-and whose names starting with `Task/`, will be executed in the order they
-appear in the runbook as well.  This allows you to define *tasks* or *steps* as
-functions to be executed by the runbook. Logging, by default, also start when
-**Runbook.md** start executing task functions.
+and whose names starting with `Task/` (configurable), will be executed in the
+order they appear in the runbook as well.  This allows you to define *tasks* or
+*steps* as functions to be executed by the runbook. Logging, by default, also
+start when **Runbook.md** start executing task functions.
 
-> **NOTE**: Task functions (`Task/*`) must be defined in the runbook file
+> **NOTE**: Task functions must be defined in the runbook file
 directly. That is, they cannot be defined else where and then `source`d into
 the runbook. Doing so currently will mess up the task execution order.  This
 restriction might be lifted in the future.

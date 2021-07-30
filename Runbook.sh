@@ -1,5 +1,4 @@
 #TODOs:
-#  - Add an option to skip all task confirmations.
 #  - Add an option to submit the runbook as an github issue or gist?
 #    This would make it easier to view (and be reviewed); plus, checkboxes
 #    can then be toggled!
@@ -49,7 +48,7 @@ RB_CLI_ARGS=()
 RB_TASKS=()
 #RB_LOG_LEVEL=
 
-declare -A RB_CLI_OPTS=()
+declare -A RB_CLI_OPTS=([task-regex]=^Task/)
 declare -A RB_TASKS_TO_RUN=()
 
 if [[ -t 1 ]]; then
@@ -160,11 +159,16 @@ Options:
                         -M   From the first task to the M-th task.
                         0    A special case that skips all tasks.
 
+    -y, --yes         Say yes to all task confirmation prompts.
+
     --                Pass the rest of CLI args to the runbook.
 
     --log-dir DIR     Save log files to DIR (Defaults to ./log).    
     --log-from-start  Start logging at the start of the runbook script's execution.
                       (Default is to start logging only when task execution starts)
+
+    --task-regex RE   Make any function defined directly in the runbook and
+                      matching the regex RE a task function. RE defaults to ^Task/
 
 EOF
 }
@@ -177,9 +181,11 @@ rb-parse-options () {   # "$@"
           -h|--help      ) rb-show-help; exit ;;
           -l|--list-tasks) RB_CLI_OPTS[list-tasks]=x ;;
           -t|--tasks     ) RB_CLI_OPTS[task-list]=$1; shift ;;
+          -y|--yes       ) RB_CLI_OPTS[yes]=x ;;
 
           --log-dir       ) RB_LOG_DIR=$1; shift ;;
           --log-from-start) RB_CLI_OPTS[log-from-start]=x ;;
+          --task-regex    ) RB_CLI_OPTS[task-regex]=$1; shift ;;
 
           --) RB_CLI_ARGS=("$@"); break ;;
           -*) rb-show-help >&2; rb-error "Unknown option: $arg"; return 1 ;;
@@ -219,7 +225,7 @@ rb-list-tasks () (
     local func_names; func_names=$(
         declare -F \
           | while read -r line; do echo "${line##* }"; done \
-          | grep ^Task/ || true
+          | egrep "${RB_CLI_OPTS[task-regex]:?}" || true
     )
     [[ $func_names ]] || return 0
 
@@ -265,6 +271,8 @@ rb-main () {
 # ---- Utility functions that tasks can use ----------------------------------
 
 Runbook/confirm-continue-task () {
+    [[ ! ${RB_CLI_OPTS[yes]:-} ]] || return 0
+
     [[ $$ == $BASHPID ]] || {
         rb-error "$FUNCNAME doesn't work in a subshell! Exiting ..."
         kill $BASHPID
