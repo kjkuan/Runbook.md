@@ -9,25 +9,6 @@ lines numbered with:
 
     RB_DUMP=1 ./my-runbook | nl -ba
 
-
-## Q: Why reading from STDIN no longer works?
-## Answer:
-When executing a runbook, the standard input of your runbook process (`bash`) is
-used for reading the runbook script generated from the Markdown document; therefore,
-reading from `STDIN` would actually read in parts of the runbook itself!
-
-To work around that, **Runbook.md** redirects `$RB_STDIN` from `STDIN` while it's still
-available, and passes that to the runbook process as an environment variable. As
-a result, to read from `STDIN` in your runbook, you can read from `$RB_STDIN` instead.
-For example, in your runbook, if using `read`, you can do:
-
-    read -rp 'Enter your name: ' -u $RB_STDIN
-
-Or, you can just redirect from `$RB_STDIN`:
-
-    read -rp 'Enter your name: ' <&$RB_STDIN
-
-
 ## Q: How can I pass CLI arguments to my runbook, or to a specific task?
 ## Answer:
 When a runbook is invoked, any remaining CLI arguments not consumed by **Runbook.md**

@@ -23,9 +23,11 @@ if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
     if [[ ${RB_DUMP:-} ]]; then # just show the generated script
         cat
     else
-        # feed the generated script to Bash via STDIN, passing the
-        # runbook's path as $1 followed by the rest of CLI args.
-        exec bash -s "$0" "$@"
+        if [[ ${RB_FROM_STDIN:-} ]]; then
+            exec bash -s "$0" "$@"
+        else
+            exec bash -c "$(cat)" "$0" "$@" <&$RB_STDIN
+        fi
     fi
     exit
 fi
@@ -35,7 +37,11 @@ shopt -s inherit_errexit compat43
 #FIXME: check for bash version to support at least Bash 4.3 as well.
 
 # Save the path to the original runbook file as $0
-BASH_ARGV0=$(cd "$(dirname "$1")"; echo "$PWD/${1##*/}"); shift
+if [[ ${RB_FROM_STDIN:-} ]]; then
+    BASH_ARGV0=$(cd "$(dirname "$1")"; echo "$PWD/${1##*/}"); shift
+else
+    BASH_ARGV0=$(cd "$(dirname "$0")"; echo "$PWD/${0##*/}")
+fi
 
 RB_LOG_DIR=$PWD/log
 RB_EXIT_CMDS=()
@@ -80,9 +86,7 @@ rb-dump-stack-trace () {
     local rc=$?; trap ERR
     local lineno=$1 func=$2 file=$3
     _rb-dump-stack-trace () {
-        # Use the runbook file if file is 'main', which is the case when reading
-        # the script from STDIN.
-        if [[ ! $file || $file == main ]]; then file=$0; fi
+        if [[ ! $file || $file == @(main|environment) ]]; then file=$0; fi
         echo "File $file, line $lineno${func:+", in $func ()"}:"
         echo "$(mapfile -tn1 -s $((lineno - 1)) l < "$file"; echo "$l")"
     }
@@ -106,7 +110,7 @@ rb-run-exit-commands () {
     # Restore stdout and stderr so that in the case of an interactive Ctrl-C,
     # which would killed the logging child process that we redirected stdout
     # and stderr to, we'd still be able to see some messages.
-    [[ $RB_STDOUT && $RB_STDERR ]] && exec >&$RB_STDOUT 2>&$RB_STDERR
+    [[ ${RB_STDOUT:-} && ${RB_STDERR:-} ]] && exec >&$RB_STDOUT 2>&$RB_STDERR
 
     rb-info "Exiting and cleaning up ..."
     local i=$(( ${#RB_EXIT_CMDS[*]} - 1))
@@ -267,7 +271,7 @@ Runbook/confirm-continue-task () {
     } >&2
     local ans
     while true; do
-        read -u $RB_STDIN -rp "Runbook.md: Continue ${FUNCNAME[1]} ([Y]es/[S]kip/[Q]uit)? " ans
+        read -u ${RB_STDIN:?} -rp "Runbook.md: Continue ${FUNCNAME[1]} ([Y]es/[S]kip/[Q]uit)? " ans
         case ${ans,,} in
           y|yes ) break ;;
           s|skip) rb-info "*** Skipping the rest of ${FUNCNAME[1]} ***"; continue 2 ;;
