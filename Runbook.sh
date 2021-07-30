@@ -78,23 +78,27 @@ rb-die   () { echo -e "${RB_LIGHTRED}Runbook.md: $*${RB_NC}" >&2; exit 1; }
 
 rb-dump-stack-trace () {
     local rc=$?; trap ERR
+    local lineno=$1 func=$2 file=$3
+    _rb-dump-stack-trace () {
+        # Use the runbook file if file is 'main', which is the case when reading
+        # the script from STDIN.
+        if [[ ! $file || $file == main ]]; then file=$0; fi
+        echo "File $file, line $lineno${func:+", in $func ()"}:"
+        echo "$(mapfile -tn1 -s $((lineno - 1)) l < "$file"; echo "$l")"
+    }
     rb-error "--- Stack trace from shell process $BASHPID depth=$BASH_SUBSHELL -------------"
     rb-error "Return status: $rc"
     echo -ne "$RB_RED"
+    _rb-dump-stack-trace
     while caller $((i++)); do :; done \
       |
     while read -r lineno func file; do
-        # Use the runbook file if file is 'main', which is the case when reading
-        # the script from STDIN.
-        [[ $file != main ]] || file=$0
-
-        echo "File $file, line $lineno, in $func ():"
-        echo "$(mapfile -tn1 -s $((lineno - 1)) l < "$file"; echo "$l")"
+        _rb-dump-stack-trace
     done
     echo -ne "$RB_NC"
     rb-error "------------------------------------------------------------------------------"
 } >&2
-trap rb-dump-stack-trace ERR
+trap 'rb-dump-stack-trace $LINENO "$FUNCNAME" "$BASH_SOURCE"' ERR
 
 rb-run-exit-commands () {
     set +x  # so that we do as much clean up as possible.
