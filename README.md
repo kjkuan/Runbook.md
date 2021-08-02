@@ -30,8 +30,17 @@ selective task execution, ... etc.
 ## Installation and Usage
 1. Fork this repo.
 2. Start writing your runbook in Markdown! You can put it in the `runbooks/`
-   folder, in which there's an [example](runbooks/Example.md) runbook to get you
-   started.
+   folder, in which there's an [example](runbooks/Example.md) runbook to get
+   you started.
+
+   You can also create a new, or decorate an existing, Markdown file to be
+   executable by **Runbook.md** by running this command:
+
+       $ ./Runbook.sh -x myrunbook.md
+
+   which will add the HTML header and footer comments to the specified file
+   and will make it executable.
+    
 3. To execute a runbook, do it from the root of the repo. You can either run it
    with Bash explicitly:
 
@@ -104,6 +113,7 @@ restriction might be lifted in the future.
 - [lit](https://github.com/vijithassar/lit)
 - [mdsh](https://github.com/bashup/mdsh)
 - [Babel](https://orgmode.org/worg/org-contrib/babel/)
+- [Runbook](https://github.com/braintree/runbook)
 
 
 ## Contributing

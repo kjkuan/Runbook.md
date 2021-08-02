@@ -31,6 +31,84 @@ if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
     exit
 fi
 
+# For when Runbook.sh is executed by itself
+if [[ $0 == "$BASH_SOURCE" ]]; then
+    set -eo pipefail
+    show-usage () {
+            cat <<EOF
+Usage: ${0##*/} [options]
+
+Options:
+
+  -h, --help  Show this help.
+
+  -x FILE     Make FILE a Markdown file executable by Runbook.md. FILE will be
+              created if it doesn't already exists.
+
+EOF
+    }
+    (( $# )) || { show-usage; exit 1; }
+
+    decorate-file () {
+        local file=${1:?}
+        if [[ -e $file ]]; then
+            [[ -r $file && -w $file ]] || {
+                echo "$file doesn't appear to be both readable and writable!" >&2
+                exit 1
+            }
+        else
+            echo "# Put your runbook content here" > "$file"
+        fi
+        local token1 token2
+        while read -r token1 token2 _; do
+            [[ $token1 ]] || continue
+            [[ $token2 ]] && break
+        done < "$file"
+        if [[ "$token1 $token2" == '[&>/dev/null; touch' ]]; then
+            echo "It looks like $file has already been decorated by Runbook.md."
+            chmod +x "$file"
+            exit
+        fi
+        local content; content=$(
+            cat <<'HEADER'
+[&>/dev/null; touch "!---$$"; : ]: # (Please keep this and the comment below)
+<!---$$ &>/dev/null; rm -f "!---$$"
+source Runbook.sh RUN "$@"
+```
+source Runbook.sh
+```
+----------------------------------------------------------------------------->
+HEADER
+                cat "$file"
+                cat <<'FOOTER'
+<!---Please keep this comment-------------------------------------------------
+```
+rb-main "$@"
+```
+----------------------------------------------------------------------------->
+FOOTER
+        )
+        echo "$content" > "$file"
+        chmod +x "$file"
+    }
+
+    while (( $# )); do
+        opt=$1; shift
+        case $opt in
+            -h|--help) show-usage; exit
+                ;;
+            -x) file=$1; shift || { show-usage; exit 1; }
+                ;;
+            *) echo "Unknown option: $opt" >&2; show-usage; exit 1
+                ;;
+        esac
+    done
+    if [[ $file ]]; then
+        decorate-file "$file"
+    fi
+    exit
+fi
+
 set -eEo pipefail
 shopt -s inherit_errexit compat43
 #FIXME: check for bash version to support at least Bash 4.3 as well.
@@ -176,8 +254,8 @@ EOF
 #
 rb-parse-options () {   # "$@"
     while (( $# )); do
-        local arg=$1; shift
-        case $arg in
+        local opt=$1; shift
+        case $opt in
           -h|--help      ) rb-show-help; exit ;;
           -l|--list-tasks) RB_CLI_OPTS[list-tasks]=x ;;
           -t|--tasks     ) RB_CLI_OPTS[task-list]=$1; shift ;;
@@ -188,8 +266,8 @@ rb-parse-options () {   # "$@"
           --task-regex    ) RB_CLI_OPTS[task-regex]=$1; shift ;;
 
           --) RB_CLI_ARGS=("$@"); break ;;
-          -*) rb-show-help >&2; rb-error "Unknown option: $arg"; return 1 ;;
-           *) RB_CLI_ARGS=("$arg" "$@"); break ;;
+          -*) rb-show-help >&2; rb-error "Unknown option: $opt"; return 1 ;;
+           *) RB_CLI_ARGS=("$opt" "$@"); break ;;
         esac
     done
 }
