@@ -230,12 +230,14 @@ Options:
 
     -t LIST           Run only tasks specified by LIST, which is a list of comma
                       separated task indexes (as shown with option '-l') and/or
-                      index ranges of the following forms:
+                      index ranges of the following forms: (similar to 'cut -f LIST')
 
-                        N-   From the N-th task to the last task.
-                        N-M  From the N-th task to the M-th task. (M >= N)
-                        -M   From the first task to the M-th task.
-                        0    A special case that skips all tasks.
+                        0     A special case that skips all tasks.
+                        N     The N-th task.
+                        N-    From the N-th task to the last task.
+                        N-M   From the N-th task to the M-th task. (M >= N)
+                        -M    From the first task to the M-th task.
+                        NAME  Name of the task function to be executed.
 
     -y, --yes         Say yes to all task confirmation prompts.
 
@@ -258,13 +260,17 @@ rb-parse-options () {   # "$@"
         case $opt in
           -h|--help      ) rb-show-help; exit ;;
           -l|--list-tasks) RB_CLI_OPTS[list-tasks]=x ;;
-          -t|--tasks     ) RB_CLI_OPTS[task-list]=$1; shift ;;
+          -t|--tasks     ) RB_CLI_OPTS[task-list]=$1
+                           shift || { rb-show-help >&2; return 1; }
+                           ;;
           -y|--yes       ) RB_CLI_OPTS[yes]=x ;;
-
-          --log-dir       ) RB_LOG_DIR=$1; shift ;;
+          --log-dir      ) RB_LOG_DIR=$1
+                           shift || { rb-show-help >&2; return 1; }
+                           ;;
           --log-from-start) RB_CLI_OPTS[log-from-start]=x ;;
-          --task-regex    ) RB_CLI_OPTS[task-regex]=$1; shift ;;
-
+          --task-regex    ) RB_CLI_OPTS[task-regex]=$1
+                            shift || { rb-show-help >&2; return 1; }
+                            ;;
           --) RB_CLI_ARGS=("$@"); break ;;
           -*) rb-show-help >&2; rb-error "Unknown option: $opt"; return 1 ;;
            *) RB_CLI_ARGS=("$opt" "$@"); break ;;
@@ -276,10 +282,17 @@ _rb-compute-tasks-range () {
     local range_regex='^(0|[1-9][0-9]*|[1-9][0-9]*-|-[1-9][0-9]*|[1-9][0-9]*-[1-9][0-9]*)$'
     local range ranges; readarray -td, ranges < <(echo -n "${1:?}")
     local task_count=${2:?}
+    local task_names; task_names=$(rb-list-tasks)
     for range in "${ranges[@]}"; do
         [[ $range =~ $range_regex ]] || {
-            rb-error "Invalid task range spec: ${range}"
-            return 1
+            # might be a task function name
+            local r=$(set +o pipefail; fgrep -m1 -xn "$range" <<<"$task_names" | cut -d: -f1)
+            if [[ ! $r ]]; then
+                rb-error "Invalid task range spec: ${range}"
+                return 1
+            else
+                range=$r
+            fi
         }
         IFS=- read -r low high <<<"$range"
         if [[ $range != *-* ]]; then

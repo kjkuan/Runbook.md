@@ -7,7 +7,7 @@ instead of executing the runbook, **Runbook.md** will simply dump the generated
 Bash script to standard output. For example, you can get the generated Bash
 script with source lines numbered with:
 
-    RB_DUMP=1 ./my-runbook | nl -ba
+    $ RB_DUMP=1 ./my-runbook | nl -ba
 
 ## Q: I've added `set -x` in my runbook, but I'm not seeing its output when I run it.
 ## Answer:
@@ -22,7 +22,7 @@ option, it will log from the start of you runbook.
 When a runbook is invoked, any remaining CLI arguments not consumed by
 **Runbook.md** are passed on to your runnbook:
 
-    ./my-runbook -t 1 arg1 arg2
+    $ ./my-runbook -t 1 arg1 arg2
 
 In the example above, `-t 1` will be consumed by **Runbook.md**, and then both
 `arg1` and `arg2` will be passed on to the runbook as `$1` and `$2`
@@ -66,3 +66,14 @@ Or, with `read` you can also use `-u`:
     read -u $RB_STDIN -rp "Enter something: "
 
 
+## Q: How can I execute selected tasks in the order specified with `-t`?
+## Answer:
+You can't. Currently, **Runbook.md** always execute tasks in the order they are
+defined directly in the runbook. This means even if you specify `-t 3,2,1`
+in the CLI, the tasks will still be executed as task 1, 2, and 3.
+
+To work around this, you can run each task as a separate CLI invocation. E.g.,
+
+    $ ./my-runbook -t 3
+    $ ./my-runbook -t 2
+    $ ./my-runbook -t 1
