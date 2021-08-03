@@ -43,7 +43,7 @@ Options:
   -h, --help  Show this help.
 
   -x FILE     Make FILE a Markdown file executable by Runbook.md. FILE will be
-              created if it doesn't already exists.
+              created if it doesn't already exist.
 
 EOF
     }
@@ -57,7 +57,18 @@ EOF
                 exit 1
             }
         else
-            echo "# Put your runbook content here" > "$file"
+            cat > "$file" <<'EOF'
+# Put your runbook content here
+
+Example task:
+```bash
+Task/do-something () {
+    echo 'Doing work ...'
+    sleep 1
+    echo Done.
+}
+```
+EOF
         fi
         local token1 token2
         while read -r token1 token2 _; do
@@ -97,9 +108,13 @@ FOOTER
         case $opt in
             -h|--help) show-usage; exit
                 ;;
-            -x) file=$1; shift || { show-usage; exit 1; }
+            -x) file=$1; shift || {
+                  show-usage
+                  echo "-x: Missing required argument!"
+                  exit 1
+                } >&2
                 ;;
-            *) echo "Unknown option: $opt" >&2; show-usage; exit 1
+            *) { echo "Unknown option: $opt"; show-usage; } >&2; exit 1
                 ;;
         esac
     done
@@ -159,13 +174,18 @@ rb-info  () { echo -e "${RB_CYAN}Runbook.md: $*${RB_NC}"; }
 rb-error () { echo -e "${RB_RED}Runbook.md: $*${RB_NC}" >&2; }
 rb-die   () { echo -e "${RB_LIGHTRED}Runbook.md: $*${RB_NC}" >&2; exit 1; }
 
+# This extra function call makes it possible to show the line that returns
+# the non-zero status from a function before exiting due to set -e.
+#
+rb-fail () { local n=${1:-$?}; (( $n > 0 )) || n=1; command return $n; }
+
 rb-dump-stack-trace () {
     local rc=$?; trap ERR
     local lineno=$1 func=$2 file=$3
     _rb-dump-stack-trace () {
         if [[ ! $file || $file == @(main|environment) ]]; then file=$0; fi
         echo "File $file, line $lineno${func:+", in $func ()"}:"
-        echo "$(mapfile -tn1 -s $((lineno - 1)) l < "$file"; echo "$l")"
+        echo -e "$RB_FG$(mapfile -tn1 -s $((lineno - 1)) l < "$file"; echo "$l")$RB_RED"
     }
     rb-error "--- Stack trace from shell process $BASHPID depth=$BASH_SUBSHELL -------------"
     rb-error "Return status: $rc"
@@ -261,18 +281,18 @@ rb-parse-options () {   # "$@"
           -h|--help      ) rb-show-help; exit ;;
           -l|--list-tasks) RB_CLI_OPTS[list-tasks]=x ;;
           -t|--tasks     ) RB_CLI_OPTS[task-list]=$1
-                           shift || { rb-show-help >&2; return 1; }
+                           shift || { rb-show-help >&2; rb-fail; }
                            ;;
           -y|--yes       ) RB_CLI_OPTS[yes]=x ;;
           --log-dir      ) RB_LOG_DIR=$1
-                           shift || { rb-show-help >&2; return 1; }
+                           shift || { rb-show-help >&2; rb-fail; }
                            ;;
           --log-from-start) RB_CLI_OPTS[log-from-start]=x ;;
           --task-regex    ) RB_CLI_OPTS[task-regex]=$1
-                            shift || { rb-show-help >&2; return 1; }
+                            shift || { rb-show-help >&2; rb-fail; }
                             ;;
           --) RB_CLI_ARGS=("$@"); break ;;
-          -*) rb-show-help >&2; rb-error "Unknown option: $opt"; return 1 ;;
+          -*) rb-show-help >&2; rb-error "Unknown option: $opt"; rb-fail ;;
            *) RB_CLI_ARGS=("$opt" "$@"); break ;;
         esac
     done
@@ -289,7 +309,7 @@ _rb-compute-tasks-range () {
             local r=$(set +o pipefail; fgrep -m1 -xn "$range" <<<"$task_names" | cut -d: -f1)
             if [[ ! $r ]]; then
                 rb-error "Invalid task range spec: ${range}"
-                return 1
+                rb-fail
             else
                 range=$r
             fi
@@ -302,7 +322,7 @@ _rb-compute-tasks-range () {
             [[ $low  ]] || low=1
             (( low <= high )) || {
                 rb-error "Invalid decreasing task range: $range"
-                return 1
+                rb-fail
             }
             local i
             for ((i=$low; i<=$high; i++)); do
