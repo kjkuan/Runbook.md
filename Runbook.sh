@@ -351,13 +351,23 @@ rb-list-tasks () (
 # Run the Task functions in their definition order.
 #
 rb-run-tasks () {
-    local i=0 task
+    _rb-calculate-task-duration () {
+        printf -v t1 "%.3f" "$t1"; t1=${t1/.}
+        printf -v t2 "%.3f" "$t2"; t2=${t2/.}
+        printf -v dt "%.4d" "$(( t2 - t1 ))"
+        local f=${dt:${#dt}-3}
+        dt=${dt%???}.${f:-000}
+    }
+    local i=0 task t1 t2 dt
     for task in "${RB_TASKS[@]}"; do
         (( ++i ))
         if [[ ! ${RB_CLI_OPTS[task-list]:-} || ${RB_TASKS_TO_RUN[$i]:-} ]]; then
             rb-info "${RB_YELLOW}=== Executing $task (task $i) =========================="
+            t1=$EPOCHREALTIME
             "$task"
-            rb-info "${RB_GREEN}=== Successfully executed $task (task $i) =============="
+            t2=$EPOCHREALTIME
+            _rb-calculate-task-duration
+            rb-info "${RB_GREEN}=== Successfully executed $task (task $i; took $dt seconds) =============="
         else
             rb-info "*** Skipped $task due to unspecified task nubmer: $i ***"
         fi
