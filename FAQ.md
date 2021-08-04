@@ -14,17 +14,18 @@ script with source lines numbered with:
 **Runbook.md** already does `set -x` for you and redirects its output to the
 trace log file, which by default is saved in `./log`. Additionally, you can
 control when **Runbook.md** starts logging your runbook execution. By default,
-logging starts when tasks run. If you specify the `--log-from-start` CLI
-option, it will log from the start of you runbook.
+logging starts when tasks run. If you set the `RB_LOG_FROM_START` environment
+variable to a non-empty value, **Runbook.md** will log from the start of you
+runbook.
 
 ## Q: How can I pass CLI arguments to my runbook, or to a specific task?
 ## Answer:
 When a runbook is invoked, any remaining CLI arguments not consumed by
 **Runbook.md** are passed on to your runnbook:
 
-    $ ./my-runbook -t 1 arg1 arg2
+    $ ./my-runbook -s 1 arg1 arg2
 
-In the example above, `-t 1` will be consumed by **Runbook.md**, and then both
+In the example above, `-s 1` will be consumed by **Runbook.md**, and then both
 `arg1` and `arg2` will be passed on to the runbook as `$1` and `$2`
 respectively.  Further more, `$0` of your runbook, in this case, will be set to
 the absolute path of `my-runbook`.
@@ -66,14 +67,16 @@ Or, with `read` you can also use `-u`:
     read -u $RB_STDIN -rp "Enter something: "
 
 
-## Q: How can I execute selected tasks in the order specified with `-t`?
+## Q: How can I execute selected steps in the order specified with `-s`?
 ## Answer:
-You can't. Currently, **Runbook.md** always execute tasks in the order they are
-defined directly in the runbook. This means even if you specify `-t 3,2,1`
-in the CLI, the tasks will still be executed as task 1, 2, and 3.
+You can't. The `-s` option is for selecting steps to be included when your
+runbook is executed.  **Runbook.md** always execute the steps in the order they
+are defined directly in the runbook.  This means even if you specify `-s 3,2,1`
+in the CLI, the steps will still be executed as step 1, 2, and 3.
 
-To work around this, you can run each task as a separate CLI invocation. E.g.,
+To work around this, you can run your steps as tasks with `-t`. For example,
+assuming the step functions are: `Step/1`, `Step/2`, and `Step/3`, then:
 
-    $ ./my-runbook -t 3
-    $ ./my-runbook -t 2
-    $ ./my-runbook -t 1
+    $ ./my-runbook -t Step/3,Step/2,Step/1
+
+will run `Step/3`, then `Step/2`, and finally, `Step/1`.

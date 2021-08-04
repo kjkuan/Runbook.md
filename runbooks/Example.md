@@ -15,7 +15,7 @@ event:
 2. [ ] [Set in-app message] for the maintenance.
 3. [ ] Stop the service:
 ```bash
-Task/Stop-Important-Service () {
+Step/Stop-Important-Service () {
     echo "Stopping service ..."
     Runbook/confirm-continue-task
     echo "Important service stopped!"
@@ -24,7 +24,7 @@ Task/Stop-Important-Service () {
 4. [ ] [Take a snapshot] of the DB.
 5. [ ] Run the maintenance script:
 ```bash
-Task/Run-Maintenance-Script () {
+Step/Run-Maintenance-Script () {
     Runbook/confirm-continue-task
     echo "Doing real work ..."
     local i=0
@@ -38,7 +38,7 @@ Task/Run-Maintenance-Script () {
 ```
 6. [ ] Start the service back up:
 ```bash
-Task/Start-Important-Service () {
+Step/Start-Important-Service () {
     Runbook/confirm-continue-task
     echo "Starting the service back up..."
     echo "Service started!"
@@ -50,6 +50,21 @@ Task/Start-Important-Service () {
 [Set in-app message]: # (link here)
 [Take a snapshot]: # (link here)
 [Check]: # (link here)
+
+Task to check the status of the service:
+```bash
+Task/Check-Service-Status () {
+    echo Checking service status ...
+    echo Service is Up.
+}
+```
+
+Task to page for help:
+```bash
+Task/Page-2nd-level-on-call () {
+    echo 'Help!!!'
+}
+```
 
 <!---Please keep this comment-------------------------------------------------
 ```

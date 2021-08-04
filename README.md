@@ -24,8 +24,9 @@ selective task execution, ... etc.
   Markdown document.
 - Runbook logging includes both normal output logs, as well as, detailed
   trace logs with all command expansions for ease of debugging and auditing.
-- Organize your runbook with task functions, which are discrete steps
-  that can be procedurally or selectively executed with a runbook.
+- Organize your runbook with task functions, which are either discrete steps
+  that can be executed sequentially and selectively, or are tasks that can be
+  invoked individually in a specific order.
 
 ## Installation and Usage
 1. Fork this repo.
@@ -96,15 +97,18 @@ fenced code; however, it's recommended to do any actual work of a runbook in
 task functions rather than directly in the top level of the document.
 
 At the end of the runbook, Bash functions defined *directly* in the runbook,
-and whose names starting with `Task/` (configurable), will be executed *in the
-order they appear in the runbook* as well.  This allows you to define *tasks* or
-*steps* as functions to be executed by the runbook. Logging, by default, also
-start when **Runbook.md** start executing task functions.
+and whose names starting with `Step/` (configurable), will be executed *in the
+order they appear in the runbook* as well. Functions whose names starting with
+`Task/` won't be executed unless they are selected for execution via a CLI
+option. This allows you to organize your runbook as a single workflow of
+*steps*, but also lets you define *tasks* that can be invoked individually.
+Logging, by default, also start when **Runbook.md** start executing task
+functions.
 
-> **NOTE**: Task functions must be defined in the runbook file
-directly. That is, they cannot be defined else where and then `source`d into
-the runbook. Doing so currently will mess up the task execution order.  This
-restriction might be lifted in the future.
+> **NOTE**: Step functions, which are also task functions, must be defined
+> in the runbook file directly. That is, they cannot be defined else where and
+> then `source`d into the runbook. Doing so currently will mess up the task
+> execution order.  This restriction might be lifted in the future.
 
 ## See also the [FAQ](FAQ.md)
 

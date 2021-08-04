@@ -1,8 +1,14 @@
 #TODOs:
-#  - Add an option to submit the runbook as an github issue or gist?
-#    This would make it easier to view (and be reviewed); plus, checkboxes
-#    can then be toggled!
-#  - Add an option to resume from the last failed task.
+#  - Allow showing details about task functions with -h and -t?
+#    E.g., extract the comment paragraph before the function definition
+#    and use it as task description. We can also show the function
+#    source code!
+#
+#    With both options -h and -lt, we can show the first lines of task
+#    description as a summary beside the task names?
+#
+#  - Add an option to resume from the last failed step.
+#
 
 # If we are being sourced and told to RUN the sourcing doc
 if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
@@ -135,14 +141,20 @@ else
     BASH_ARGV0=$(cd "$(dirname "$0")"; echo "$PWD/${0##*/}")
 fi
 
-RB_LOG_DIR=$PWD/log
+RB_START_TIME=$EPOCHREALTIME
+RB_LOG_DIR=${RB_LOG_DIR:-"$PWD/log"}
+RB_LOG_FROM_START=${RB_LOG_FROM_START:-}
+RB_STEP_REGEX=${RB_STEP_REGEX:-^Step/}
+RB_TASK_REGEX=${RB_TASK_REGEX:-^Task/}
+
 RB_EXIT_CMDS=()
 RB_CLI_ARGS=()
+RB_STEPS=()
 RB_TASKS=()
 #RB_LOG_LEVEL=
 
-declare -A RB_CLI_OPTS=([task-regex]=^Task/)
-declare -A RB_TASKS_TO_RUN=()
+declare -A RB_CLI_OPTS=()
+declare -A RB_STEPS_TO_RUN=()
 
 if [[ -t 1 ]]; then
     RB_NC='\e[0m'   # No Color
@@ -209,7 +221,6 @@ rb-run-exit-commands () {
     # and stderr to, we'd still be able to see some messages.
     [[ ${RB_STDOUT:-} && ${RB_STDERR:-} ]] && exec >&$RB_STDOUT 2>&$RB_STDERR
 
-    rb-info "Exiting and cleaning up ..."
     local i=$(( ${#RB_EXIT_CMDS[*]} - 1))
     for i in $(seq $i -1 0); do eval "${RB_EXIT_CMDS[$i]}"; done
     rb-info "Done."
@@ -235,40 +246,58 @@ rb-start-logging () {
     ln -nfs "$output_log" "${output_log%/*}/${0##*/}.log"
     ln -nfs "$trace_log" "${trace_log%/*}/${0##*/}.trace"
 
-    exec {logfd}> >(_rb-tstamp-lines $tfmt > "$trace_log")
+    exec {logfd}> >(set +x; _rb-tstamp-lines $tfmt > "$trace_log")
     BASH_XTRACEFD=$logfd; set -x
-    exec 1> >(exec tee >(_rb-tstamp-lines $tfmt > "$output_log")) 2>&1
+    exec 1> >(exec tee >(set +x; _rb-tstamp-lines $tfmt > "$output_log")) 2>&1
 }
 
 rb-show-help () {
     cat <<EOF
 Usage: $0 [options] [args]
+
 Options:
     -h, --help        Show this help.
 
-    -l, --list-tasks  List all tasks in the order they are defined in the runbook.
+    -ls               List all steps in the order they are defined in the runbook.
+    -lt               List all the non-step tasks defined in the runbook.
 
-    -t LIST           Run only tasks specified by LIST, which is a list of comma
-                      separated task indexes (as shown with option '-l') and/or
+    -s, --steps=LIST  Run only steps specified by LIST, which is a list of comma
+                      separated task indexes (as shown with option '-l') and / or
                       index ranges of the following forms: (similar to 'cut -f LIST')
 
-                        0     A special case that skips all tasks.
-                        N     The N-th task.
-                        N-    From the N-th task to the last task.
-                        N-M   From the N-th task to the M-th task. (M >= N)
-                        -M    From the first task to the M-th task.
-                        NAME  Name of the task function to be executed.
+                        0     A special case that skips all steps.
+                        N     The N-th step.
+                        N-    From the N-th step to the last step.
+                        N-M   From the N-th step to the M-th step. (M >= N)
+                        -M    From the first step to the M-th step.
+                        NAME  Name of the step function to be executed.
+
+                      LIST defaults to '1-', which runs all steps.
+
+                      Steps selected by LIST will always be executed first at the end
+                      of the runbook, in the order they are defined, before any non-step
+                      tasks.
+
+    -t, --tasks=LIST  Run the tasks in the order specified in LIST, which is a list of
+                      comma separated task function names, including step function names.
+                      Unless a step is also specified with '-s', no steps will be run when
+                      this option is used.
 
     -y, --yes         Say yes to all task confirmation prompts.
 
     --                Pass the rest of CLI args to the runbook.
 
-    --log-dir DIR     Save log files to DIR (Defaults to ./log).    
-    --log-from-start  Start logging at the start of the runbook script's execution.
-                      (Default is to start logging only when task execution starts)
+Environment variable options:
 
-    --task-regex RE   Make any function defined directly in the runbook and
-                      matching the regex RE a task function. RE defaults to ^Task/
+    RB_LOG_DIR         - Directory to save the log files to. (Defaults to ./log)
+
+    RB_LOG_FROM_START  - If set to non-empty, start logging at the start of the runbook
+                         script's execution. (Default is to start logging only when task
+                         execution starts)
+
+    RB_STEP_REGEX      - Regex used to match a step function. Defaults to ^Step/
+
+    RB_TASK_REGEX      - Regex used to match a task function. Defaults to ^Task/
 
 EOF
 }
@@ -279,18 +308,30 @@ rb-parse-options () {   # "$@"
         local opt=$1; shift
         case $opt in
           -h|--help      ) rb-show-help; exit ;;
-          -l|--list-tasks) RB_CLI_OPTS[list-tasks]=x ;;
-          -t|--tasks     ) RB_CLI_OPTS[task-list]=$1
-                           shift || { rb-show-help >&2; rb-fail; }
-                           ;;
-          -y|--yes       ) RB_CLI_OPTS[yes]=x ;;
-          --log-dir      ) RB_LOG_DIR=$1
-                           shift || { rb-show-help >&2; rb-fail; }
-                           ;;
-          --log-from-start) RB_CLI_OPTS[log-from-start]=x ;;
-          --task-regex    ) RB_CLI_OPTS[task-regex]=$1
-                            shift || { rb-show-help >&2; rb-fail; }
-                            ;;
+
+          -ls) RB_CLI_OPTS[list-steps]=x ;;
+          -lt) RB_CLI_OPTS[list-tasks]=x ;;
+
+          -s|--steps|--steps=*)
+              if [[ $opt == *=* ]]; then
+                  RB_CLI_OPTS[step-list]=${opt#*=}
+              else
+                  RB_CLI_OPTS[step-list]=$1
+                  shift || { rb-show-help >&2; rb-fail; }
+              fi
+              ;;
+
+          -t|--tasks|--tasks=*)
+              if [[ $opt == *=* ]]; then
+                  RB_CLI_OPTS[task-list]=${opt#*=}
+              else
+                  RB_CLI_OPTS[task-list]=$1
+                  shift || { rb-show-help >&2; rb-fail; }
+              fi
+              ;;
+
+          -y|--yes) RB_CLI_OPTS[yes]=x ;;
+
           --) RB_CLI_ARGS=("$@"); break ;;
           -*) rb-show-help >&2; rb-error "Unknown option: $opt"; rb-fail ;;
            *) RB_CLI_ARGS=("$opt" "$@"); break ;;
@@ -298,11 +339,11 @@ rb-parse-options () {   # "$@"
     done
 }
 
-_rb-compute-tasks-range () {
+_rb-compute-steps-range () {
     local range_regex='^(0|[1-9][0-9]*|[1-9][0-9]*-|-[1-9][0-9]*|[1-9][0-9]*-[1-9][0-9]*)$'
     local range ranges; readarray -td, ranges < <(echo -n "${1:?}")
     local task_count=${2:?}
-    local task_names; task_names=$(rb-list-tasks)
+    local task_names; task_names=$(rb-list-steps)
     for range in "${ranges[@]}"; do
         [[ $range =~ $range_regex ]] || {
             # might be a task function name
@@ -316,7 +357,7 @@ _rb-compute-tasks-range () {
         }
         IFS=- read -r low high <<<"$range"
         if [[ $range != *-* ]]; then
-            RB_TASKS_TO_RUN[$low]=x
+            RB_STEPS_TO_RUN[$low]=x
         else
             [[ $high ]] || high=$task_count
             [[ $low  ]] || low=1
@@ -326,17 +367,17 @@ _rb-compute-tasks-range () {
             }
             local i
             for ((i=$low; i<=$high; i++)); do
-                RB_TASKS_TO_RUN[$i]=x
+                RB_STEPS_TO_RUN[$i]=x
             done
         fi
     done
 }
 
-rb-list-tasks () (
+rb-list-steps () (
     local func_names; func_names=$(
         declare -F \
-          | while read -r line; do echo "${line##* }"; done \
-          | egrep "${RB_CLI_OPTS[task-regex]:?}" || true
+          | cut -d' ' -f3- \
+          | egrep "${RB_STEP_REGEX:?}" || true
     )
     [[ $func_names ]] || return 0
 
@@ -348,44 +389,89 @@ rb-list-tasks () (
       | cut -d' ' -f1
 )
 
-# Run the Task functions in their definition order.
+rb-list-tasks () {
+    declare -F | cut -d' ' -f3- | egrep "${RB_TASK_REGEX:?}" || true
+}
+
+_rb-calculate-duration () {
+    printf -v t1 "%.3f" "$t1"; t1=${t1/.}
+    printf -v t2 "%.3f" "$t2"; t2=${t2/.}
+    printf -v dt "%.4d" "$(( t2 - t1 ))"
+    local f=${dt:${#dt}-3}
+    dt=${dt%???}.${f:-000}
+}
+
+# Run the steps specified in their definition order first, then
+# run the tasks in the order specified in the CLI.
 #
 rb-run-tasks () {
-    _rb-calculate-task-duration () {
-        printf -v t1 "%.3f" "$t1"; t1=${t1/.}
-        printf -v t2 "%.3f" "$t2"; t2=${t2/.}
-        printf -v dt "%.4d" "$(( t2 - t1 ))"
-        local f=${dt:${#dt}-3}
-        dt=${dt%???}.${f:-000}
-    }
     local i=0 task t1 t2 dt
+
+    if [[ ! ${RB_CLI_OPTS[task-list]:-} || ${RB_CLI_OPTS[step-list]:-} ]]; then
+        for task in "${RB_STEPS[@]}"; do
+            (( ++i ))
+            if [[ ! ${RB_CLI_OPTS[step-list]:-} || ${RB_STEPS_TO_RUN[$i]:-} ]]; then
+                rb-info "${RB_YELLOW}=== Executing $task (Step $i) =========================="
+                t1=$EPOCHREALTIME
+                "$task"
+                t2=$EPOCHREALTIME
+                _rb-calculate-duration
+                rb-info "${RB_GREEN}=== Successfully executed $task (Step $i; took $dt seconds) =============="
+            else
+                rb-info "*** Skipped $task due to unspecified step nubmer: $i ***"
+            fi
+        done
+    fi
+
     for task in "${RB_TASKS[@]}"; do
-        (( ++i ))
-        if [[ ! ${RB_CLI_OPTS[task-list]:-} || ${RB_TASKS_TO_RUN[$i]:-} ]]; then
-            rb-info "${RB_YELLOW}=== Executing $task (task $i) =========================="
-            t1=$EPOCHREALTIME
-            "$task"
-            t2=$EPOCHREALTIME
-            _rb-calculate-task-duration
-            rb-info "${RB_GREEN}=== Successfully executed $task (task $i; took $dt seconds) =============="
-        else
-            rb-info "*** Skipped $task due to unspecified task nubmer: $i ***"
-        fi
+        rb-info "${RB_YELLOW}=== Executing $task =========================="
+        t1=$EPOCHREALTIME
+        "$task"
+        t2=$EPOCHREALTIME
+        _rb-calculate-duration
+        rb-info "${RB_GREEN}=== Successfully executed $task (took $dt seconds) =============="
     done
+}
+
+rb-show-total-runtime () {
+    local t1=$RB_START_TIME t2=$EPOCHREALTIME dt
+    _rb-calculate-duration
+    rb-info "Total runtime: $dt seconds"
 }
 
 # Main entry point to be called at the end of the runbook to
 # handle runbook options and start running tasks.
 rb-main () {
-    if [[ ${RB_CLI_OPTS[list-tasks]:-} ]]; then
-        rb-list-tasks | nl; return
+    local list_only=
+    if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
+        rb-list-steps | nl -ba        ; list_only=x
     fi
+    if [[ ${RB_CLI_OPTS[list-tasks]:-} ]]; then
+        rb-list-tasks | sed 's/^/	/'; list_only=x
+    fi
+    [[ $list_only ]] && return
 
-    set -f; RB_TASKS=($(rb-list-tasks)); set +f
-    local task_ranges=${RB_CLI_OPTS[task-list]:-}
-    [[ ! $task_ranges ]] || _rb-compute-tasks-range "$task_ranges" ${#RB_TASKS[*]}
+    local oset=$(shopt -op noglob || true); set -f
+    RB_STEPS=($(rb-list-steps))
+    RB_TASKS=(
+      $(IFS=,
+        for t in ${RB_CLI_OPTS[task-list]:-}; do
+            declare -F "$t" || { rb-error "Function $t is not defined!"; exit 1; }
+            [[ $t =~ $RB_TASK_REGEX ]] || {
+                rb-error "$t doesn't match '$RB_TASK_REGEX'; therefore, it's not a task!"
+                exit 1
+            }
+        done
+      )
+    )
+    eval "$oset"
 
-    [[ ${RB_CLI_OPTS[log-from-start]:-} ]] || rb-start-logging
+    local step_ranges=${RB_CLI_OPTS[step-list]:-}
+    [[ ! $step_ranges ]] || _rb-compute-steps-range "$step_ranges" ${#RB_STEPS[*]}
+
+    RB_EXIT_CMDS+=(rb-show-total-runtime)
+
+    [[ ${RB_LOG_FROM_START:-} ]] || rb-start-logging
     rb-run-tasks
 }
 
@@ -397,7 +483,7 @@ Runbook/confirm-continue-task () {
     [[ $$ == $BASHPID ]] || {
         rb-error "$FUNCNAME doesn't work in a subshell! Exiting ..."
         kill $BASHPID
-    } >&2
+    }
     local ans
     while true; do
         read -u ${RB_STDIN:?} -rp "Runbook.md: Continue ${FUNCNAME[1]} ([Y]es/[S]kip/[Q]uit)? " ans
@@ -414,6 +500,6 @@ Runbook/confirm-continue-task () {
 # Process Runbook.md specific CLI options
 rb-parse-options "$@"; set -- "${RB_CLI_ARGS[@]}"
 
-if [[ ${RB_CLI_OPTS[log-from-start]:-} ]]; then
+if [[ ${RB_LOG_FROM_START:-} ]]; then
     rb-start-logging
 fi
