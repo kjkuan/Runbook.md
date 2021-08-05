@@ -7,6 +7,7 @@
 #    With both options -h and -lt, we can show the first lines of task
 #    description as a summary beside the task names?
 #
+#  - Add an option to confirm all step executions.
 #  - Add an option to resume from the last failed step.
 #
 
@@ -246,7 +247,12 @@ rb-start-logging () {
     ln -nfs "$trace_log" "${trace_log%/*}/${0##*/}.trace"
 
     exec {logfd}> >(set +x; _rb-tstamp-lines $tfmt > "$trace_log")
-    BASH_XTRACEFD=$logfd; set -x
+    BASH_XTRACEFD=$logfd
+    if [[ $PS4 == "+ " ]]; then
+        #export PS4='+ $BASH_SOURCE:$LINENO in (${FUNCNAME[*]:0:${#FUNCNAME[*]}-1}): '
+        export PS4='+ $FUNCNAME():$LINENO: '
+    fi
+    set -x
     exec 1> >(exec tee >(set +x; _rb-tstamp-lines $tfmt > "$output_log")) 2>&1
 }
 
