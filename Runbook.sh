@@ -223,7 +223,6 @@ rb-run-exit-commands () {
 
     local i=$(( ${#RB_EXIT_CMDS[*]} - 1))
     for i in $(seq $i -1 0); do eval "${RB_EXIT_CMDS[$i]}"; done
-    rb-info "Done."
 }
 trap rb-run-exit-commands EXIT
 
@@ -262,7 +261,7 @@ Options:
     -lt               List all the non-step tasks defined in the runbook.
 
     -s, --steps=LIST  Run only steps specified by LIST, which is a list of comma
-                      separated task indexes (as shown with option '-l') and / or
+                      separated task indexes (as shown with option '-ls') and / or
                       index ranges of the following forms: (similar to 'cut -f LIST')
 
                         0     A special case that skips all steps.
@@ -436,21 +435,31 @@ rb-run-tasks () {
 rb-show-total-runtime () {
     local t1=$RB_START_TIME t2=$EPOCHREALTIME dt
     _rb-calculate-duration
+    rb-info "Done."
     rb-info "Total runtime: $dt seconds"
 }
 
 # Main entry point to be called at the end of the runbook to
 # handle runbook options and start running tasks.
 rb-main () {
-    local list_only=
-    if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
-        rb-list-steps | nl -ba        ; list_only=x
+    (
+        if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
+            rb-list-steps | nl -ba -s\| -w3
+        fi
+        if [[ ${RB_CLI_OPTS[list-tasks]:-} ]]; then
+            rb-list-tasks \
+                |
+            if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
+                sed 's/^/  -|/'
+            else
+                cat
+            fi
+        fi
+    ) \
+       | column -ts\|
+    if [[ ${RB_CLI_OPTS[list-steps]:-} || ${RB_CLI_OPTS[list-tasks]:-} ]]; then
+        exit
     fi
-    if [[ ${RB_CLI_OPTS[list-tasks]:-} ]]; then
-        rb-list-tasks | sed 's/^/	/'; list_only=x
-    fi
-    [[ $list_only ]] && return
-
     local oset=$(shopt -op noglob || true); set -f
     RB_STEPS=($(rb-list-steps))
     RB_TASKS=(
