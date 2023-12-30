@@ -215,7 +215,7 @@ rb-dump-stack-trace () {
 trap 'rb-dump-stack-trace $LINENO "$FUNCNAME" "$BASH_SOURCE"' ERR
 
 rb-run-exit-commands () {
-    set +x  # so that we do as much clean up as possible.
+    set +e  # so that we do as much clean up as possible.
 
     # Restore stdout and stderr so that in the case of an interactive Ctrl-C,
     # which would killed the logging child process that we redirected stdout
@@ -223,7 +223,9 @@ rb-run-exit-commands () {
     [[ ${RB_STDOUT:-} && ${RB_STDERR:-} ]] && exec >&$RB_STDOUT 2>&$RB_STDERR
 
     local i=$(( ${#RB_EXIT_CMDS[*]} - 1))
-    for i in $(seq $i -1 0); do eval "${RB_EXIT_CMDS[$i]}"; done
+    if (( i >= 0 )); then
+        for i in $(seq $i -1 0); do eval "${RB_EXIT_CMDS[$i]}"; done
+    fi
 }
 trap rb-run-exit-commands EXIT
 
