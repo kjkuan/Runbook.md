@@ -80,3 +80,11 @@ assuming the step functions are: `Step/1`, `Step/2`, and `Step/3`, then:
     $ ./my-runbook -t Step/3,Step/2,Step/1
 
 will run `Step/3`, then `Step/2`, and finally, `Step/1`.
+
+## Q: I need to capture the standard output of a task execution. How can I do so without also capturing Runbook.md's logs?
+## Answer:
+You can suppress the Runbook.md's `STDOUT` logs with the `-q` (`--quiet`) option. E.g.,
+
+    $ output=$(./my-runbook -q -t Task/my-task)
+
+Any runbook error logs will still go to `STDERR` so you will know if there's an error.

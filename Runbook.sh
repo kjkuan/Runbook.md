@@ -292,6 +292,9 @@ Options:
 
     -y, --yes         Say yes to all task confirmation prompts.
 
+    -q, --quiet       Suppress Runbook.md's STDOUT logs about task executions.
+                      Error logs will still go to STDERR.
+
     --                Pass the rest of CLI args to the runbook.
 
 Environment variable options:
@@ -338,6 +341,8 @@ rb-parse-options () {   # "$@"
               ;;
 
           -y|--yes) RB_CLI_OPTS[yes]=x ;;
+
+          -q|--quiet) rb-info () { :; } ;;
 
           --) RB_CLI_ARGS=("$@"); break ;;
           -*) rb-show-help >&2; rb-error "Unknown option: $opt"; rb-fail ;;
