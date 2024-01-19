@@ -446,7 +446,7 @@ rb-run () {
     [[ ! ${RB_TASK[$key@run_by]:-} ]] || return 0
 
     local t1 t2 dt step_note
-    [[ $task =~ $RB_STEP_REGEX ]] && step_note="Step $_rb_step_i" || step_note=
+    [[ $task =~ $RB_STEP_REGEX ]] && [[ ${_rb_step_i:-} ]] && step_note="Step $_rb_step_i" || step_note=
 
     rb-info "${RB_YELLOW}=== Executing $task${*:+" $*"} ${step_note:+"($step_note) "}=========================="
     t1=$EPOCHREALTIME
