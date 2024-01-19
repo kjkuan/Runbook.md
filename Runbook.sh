@@ -157,6 +157,10 @@ RB_TASKS=()
 declare -A RB_CLI_OPTS=()
 declare -A RB_STEPS_TO_RUN=()
 
+# For saving task attributes; currently used to keep track of the dynamic
+# dependency of task executions started by rb-run().
+declare -A RB_TASK=()
+
 if [[ -t 1 ]]; then
     RB_NC='\e[0m'   # No Color
     RB_FG='\e[39m'  # Default foreground color
@@ -417,32 +421,50 @@ _rb-calculate-duration () {
 # run the tasks in the order specified in the CLI.
 #
 rb-run-tasks () {
-    local i=0 task t1 t2 dt
+    local task
 
     if [[ ! ${RB_CLI_OPTS[task-list]:-} || ${RB_CLI_OPTS[step-list]:-} ]]; then
+        local _rb_step_i=0
         for task in "${RB_STEPS[@]}"; do
-            (( ++i ))
-            if [[ ! ${RB_CLI_OPTS[step-list]:-} || ${RB_STEPS_TO_RUN[$i]:-} ]]; then
-                rb-info "${RB_YELLOW}=== Executing $task (Step $i) =========================="
-                t1=$EPOCHREALTIME
-                "$task"
-                t2=$EPOCHREALTIME
-                _rb-calculate-duration
-                rb-info "${RB_GREEN}=== Successfully executed $task (Step $i; took $dt seconds) =============="
+            (( ++_rb_step_i ))
+            if [[ ! ${RB_CLI_OPTS[step-list]:-} || ${RB_STEPS_TO_RUN[$_rb_step_i]:-} ]]; then
+                rb-run "$task"
             else
-                rb-info "*** Skipped $task due to unspecified step nubmer: $i ***"
+                rb-info "*** Skipped $task due to unspecified step nubmer: $_rb_step_i ***"
             fi
         done
+        unset -v _rb_step_i
     fi
 
     for task in "${RB_TASKS[@]}"; do
-        rb-info "${RB_YELLOW}=== Executing $task =========================="
-        t1=$EPOCHREALTIME
-        "$task"
-        t2=$EPOCHREALTIME
-        _rb-calculate-duration
-        rb-info "${RB_GREEN}=== Successfully executed $task (took $dt seconds) =============="
+        rb-run "$task"
     done
+}
+
+rb-run () {
+    local task=${1:?} key="$*"; shift
+    [[ ! ${RB_TASK[$key@run_by]:-} ]] || return 0
+
+    local t1 t2 dt step_note
+    [[ $task =~ $RB_STEP_REGEX ]] && step_note="Step $_rb_step_i" || step_note=
+
+    rb-info "${RB_YELLOW}=== Executing $task${*:+" $*"} ${step_note:+"($step_note) "}=========================="
+    t1=$EPOCHREALTIME
+    "$task" "$@"
+    t2=$EPOCHREALTIME
+    _rb-calculate-duration
+    rb-info "${RB_GREEN}=== Successfully executed $task${*:+" $*"} (${step_note:+"$step_note; "}took $dt seconds) =============="
+
+    local i
+    for ((i=1; i < ${#FUNCNAME[*]}; i++)); do
+        if [[ ${FUNCNAME[i]} =~ $RB_TASK_REGEX ]] ||
+           [[ ${FUNCNAME[i]} =~ $RB_STEP_REGEX ]]
+        then
+            RB_TASK[$key@run_by]=${FUNCNAME[i]}
+            return
+        fi
+    done
+    RB_TASK[$key@run_by]=${FUNCNAME[1]:-0}
 }
 
 rb-show-total-runtime () {

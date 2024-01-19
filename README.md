@@ -110,6 +110,28 @@ functions.
 > then `source`d into the runbook. Doing so currently will mess up the task
 > execution order.  This restriction might be lifted in the future.
 
+
+## Tracking Task / Step Dependencies
+To avoid repeating tasks or steps that have been executed, **Runbook.md**
+by default keeps track of executed tasks for you when a task / step is executed.
+You can also explicitly invoke any task / step functions with the `rb-run`
+command to enable dependency tracking. For example, in your runbook:
+
+```bash
+rb-run Task/dependency_1  # runs the task
+rb-run Task/dependency_1  # task won't be executed since it's been run by rb-run
+```
+
+Note that task executions are tracked by the task / step name and their
+arguments. For example,
+
+```bash
+rb-run Task/dependency_1 arg1  # runs the task with arg1
+rb-run Task/dependency_1 arg2  # runs the task with arg2 since the task + argument combination hasn't been run.
+rb-run Task/dependency_1 arg1  # won't run the task since the command "Task/dependency_1 arg1" has been run.
+```
+
+
 ## See also the [FAQ](FAQ.md)
 
 ## Other Similar Tools
