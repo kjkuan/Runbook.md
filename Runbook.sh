@@ -240,6 +240,11 @@ _rb-tstamp-lines () {
     done
 }
 rb-start-logging () {
+    # if RB_LOG_DIR is set and empty then disable logging entirely.
+    if [[ ! ${RB_LOG_DIR-x} && ! $RB_LOG_DIR ]]; then
+        RB_STDOUT=1 RB_STDERR=2
+        return 0
+    fi
     exec {RB_STDOUT}>&1 {RB_STDERR}>&2
     mkdir -p "$RB_LOG_DIR"; RB_LOG_DIR=$(cd "$RB_LOG_DIR" && pwd)
     local tfmt=%Y-%m-%dT%T
@@ -299,6 +304,8 @@ Options:
     -q, --quiet       Suppress Runbook.md's STDOUT logs about task executions.
                       Error logs will still go to STDERR.
 
+    -qq, --no-logs    Disable logging completely; same as setting RB_LOG_DIR to an empty string.
+
     --                Pass the rest of CLI args to the runbook.
 
 Environment variable options:
@@ -347,6 +354,7 @@ rb-parse-options () {   # "$@"
           -y|--yes) RB_CLI_OPTS[yes]=x ;;
 
           -q|--quiet) rb-info () { :; } ;;
+          -qq|--no-logs) RB_LOG_DIR= ;;
 
           --) RB_CLI_ARGS=("$@"); break ;;
           -*) rb-show-help >&2; rb-error "Unknown option: $opt"; rb-fail ;;
