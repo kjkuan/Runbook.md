@@ -150,18 +150,19 @@ RB_TASK_REGEX=${RB_TASK_REGEX:-^Task/}
 
 RB_EXIT_CMDS=()
 RB_CLI_ARGS=()
-RB_STEPS=()
-RB_TASKS=()
+RB_STEPS=()  # all the defined steps; steps are ordered tasks.
+RB_TASKS=()  # tasks to be run
 #RB_LOG_LEVEL=
 
 declare -A RB_CLI_OPTS=()
-declare -A RB_STEPS_TO_RUN=()
+declare -A RB_STEPS_TO_RUN=()  # steps to be run
 
 # For saving task attributes; currently used to keep track of the dynamic
 # dependency of task executions started by rb-run().
+#
 declare -A RB_TASK=()
 
-if [[ -t 1 ]]; then
+if [[ ! ${NO_COLOR:-} ]]; then
     RB_NC='\e[0m'   # No Color
     RB_FG='\e[39m'  # Default foreground color
     RB_BLACK='\e[0;30m'
@@ -292,12 +293,12 @@ Options:
 
                       Steps selected by LIST will always be executed first at the end
                       of the runbook, in the order they are defined, before any non-step
-                      tasks.
+                      tasks. This option can be specified multiple times.
 
     -t, --tasks=LIST  Run the tasks in the order specified in LIST, which is a list of
                       comma separated task function names, including step function names.
                       Unless a step is also specified with '-s', no steps will be run when
-                      this option is used.
+                      this option is used. This option can be specified multiple times.
 
     -y, --yes         Say yes to all task confirmation prompts.
 
@@ -322,6 +323,8 @@ Environment variable options:
 
     RB_TASK_REGEX      - Regex used to match a task function. Defaults to ^Task/
 
+    NO_COLOR           - Set to non-empty to disable colored outputs.
+
 EOF
 }
 # Process runbook CLI options; remaining args will be put in the RB_CLI_ARGS array.
@@ -337,18 +340,18 @@ rb-parse-options () {   # "$@"
 
           -s|--steps|--steps=*)
               if [[ $opt == *=* ]]; then
-                  RB_CLI_OPTS[step-list]=${opt#*=}
+                  RB_CLI_OPTS[step-list]+=${opt#*=},
               else
-                  RB_CLI_OPTS[step-list]=$1
+                  RB_CLI_OPTS[step-list]+=$1,
                   shift || { rb-show-help >&2; rb-fail; }
               fi
               ;;
 
           -t|--tasks|--tasks=*)
               if [[ $opt == *=* ]]; then
-                  RB_CLI_OPTS[task-list]=${opt#*=}
+                  RB_CLI_OPTS[task-list]+=${opt#*=},
               else
-                  RB_CLI_OPTS[task-list]=$1
+                  RB_CLI_OPTS[task-list]+=$1,
                   shift || { rb-show-help >&2; rb-fail; }
               fi
               ;;
