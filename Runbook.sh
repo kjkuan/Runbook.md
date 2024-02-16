@@ -304,13 +304,15 @@ Options:
     -q, --quiet       Suppress Runbook.md's STDOUT logs about task executions.
                       Error logs will still go to STDERR.
 
-    -qq, --no-logs    Disable logging completely; same as setting RB_LOG_DIR to an empty string.
+    -qq, --no-logs    Disable logging completely; same as -q plus setting RB_LOG_DIR to
+                      an empty string.
 
     --                Pass the rest of CLI args to the runbook.
 
 Environment variable options:
 
     RB_LOG_DIR         - Directory to save the log files to. (Defaults to ./log)
+                         To disable logging to files, set it to an empty string.
 
     RB_LOG_FROM_START  - If set to non-empty, start logging at the start of the runbook
                          script's execution. (Default is to start logging only when task
@@ -354,7 +356,7 @@ rb-parse-options () {   # "$@"
           -y|--yes) RB_CLI_OPTS[yes]=x ;;
 
           -q|--quiet) rb-info () { :; } ;;
-          -qq|--no-logs) RB_LOG_DIR= ;;
+          -qq|--no-logs) rb-info () { :; }; RB_LOG_DIR= ;;
 
           --) RB_CLI_ARGS=("$@"); break ;;
           -*) rb-show-help >&2; rb-error "Unknown option: $opt"; rb-fail ;;
