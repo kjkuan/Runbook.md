@@ -520,10 +520,8 @@ rb-show-total-runtime () {
 # handle runbook options and start running tasks.
 rb-main () {
     # Work around the fact that 'column' might not be available on some system.
-    if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
-        type -P column >/dev/null || {
-            column () { cut -d\| -f2 | nl; }
-        }
+    if ! type -P column >/dev/null; then
+        column () { cut -d\| -f2 | nl -bp"$RB_STEP_REGEX" -w7; }
     fi
     (
         if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
