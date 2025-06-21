@@ -1,5 +1,5 @@
-[&>/dev/null; touch "!---$$"; : ]: # (Please keep this and the comment below)
-<!---$$ &>/dev/null; rm -f "!---$$"
+[>/dev/null 2>&1; touch "!---$$"; : ]: # (Please keep this and the comment below)
+<!---$$ >/dev/null 2>&1; rm -f "!---$$"
 source Runbook.sh RUN "$@"
 ```
 source Runbook.sh
@@ -14,17 +14,16 @@ event:
 1. [ ] Announce in the engineering channel that maintenance is about to start.
 2. [ ] [Set in-app message] for the maintenance.
 3. [ ] Stop the service:
-```bash
-Step/Stop-Important-Service () {
+
+```bash Step
     echo "Stopping service ..."
     Runbook/confirm-continue-task
     echo "Important service stopped!"
-}
 ```
 4. [ ] [Take a snapshot] of the DB.
 5. [ ] Run the maintenance script:
-```bash
-Step/Run-Maintenance-Script () {
+
+```bash Step
     Runbook/confirm-continue-task
     echo "Doing real work ..."
     local i=0
@@ -34,15 +33,13 @@ Step/Run-Maintenance-Script () {
     done
     echo
     echo "All done!"
-}
 ```
 6. [ ] Start the service back up:
-```bash
-Step/Start-Important-Service () {
+
+```bash Step/last
     Runbook/confirm-continue-task
     echo "Starting the service back up..."
     echo "Service started!"
-}
 ```
 7. [ ] [Check] that things are still working.
 8. [ ] Notify in the engineering channel that the maintenance is now over.

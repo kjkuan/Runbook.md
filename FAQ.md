@@ -88,3 +88,11 @@ You can suppress the Runbook.md's `STDOUT` logs with the `-q` (`--quiet`) option
     $ output=$(./my-runbook -q -t Task/my-task)
 
 Any runbook error logs will still go to `STDERR` so you will know if there's an error.
+
+
+## Q: How can I prevent a Markdown code block from being executed at all?
+## Answer:
+Runbook.md only runs code blocks fenced by triple backticks that start in the first column.
+So, you can either use indentation (&gt; 3 spaces, or use a TAB, which counts as 4 spaces)
+for your code block; start <code>```</code> from other columns; use 4 or more backticks; or,
+use <code>~~~</code> as the fence instead.

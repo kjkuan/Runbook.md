@@ -50,9 +50,35 @@ if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
     # Invert the Markdown text and the Bash examples in the document, turning it
     # into a Bash script with the examples as code and everything else as comments.
     awk '
-        /^```/             { print "#", $0; in_code += 1; next }
-        in_code % 2 == 0   { print "#", $0; next }
-        in_code % 2 == 1   { print }
+        /^```(\s|\w|$)/ {
+            if (!IN_CODE) {  # opening fence
+                line = $0
+                gsub(/^```|#.*$/, "")
+                if (split($0, tokens) > 1 && tokens[1] == "bash") {
+                    FUNC_DECL = 1
+                    gsub(/^\s*bash\s*/, "")
+                    match($0, /([{(])\s*$/, tokens)
+                    BRACKET = tokens[1]
+                    gsub(/^\s*function\s+/, "")
+                    gsub(/^Step(\s|$)/, "Step/" ++STEP)
+                    print "function", $0, BRACKET ? "" : "{"
+                } else
+                    print "#", line
+                IN_CODE = 1
+                next
+            } else if (match($0, /^```$/)) { # closing fence
+                if (FUNC_DECL) {
+                    if (BRACKET == "{") print "}"
+                    if (BRACKET == "(") print ")"
+                    if (BRACKET == "" ) print "}"
+                } else
+                    print "#", $0
+                FUNC_DECL = 0
+                IN_CODE   = 0
+                next
+            }
+        }
+        { if (IN_CODE) print; else print "#", $0 }
     ' "$0" \
            |
     if [[ ${RB_DUMP:-} ]]; then # just show the generated script
@@ -111,15 +137,15 @@ EOF
             [[ $token1 ]] || continue
             [[ $token2 ]] && break
         done < "$file"
-        if [[ "$token1 $token2" == '[&>/dev/null; touch' ]]; then
+        if [[ "$token1 $token2" == '[>/dev/null 2>&1; touch' ]]; then
             echo "It looks like $file has already been decorated by Runbook.md."
             chmod +x "$file"
             exit
         fi
         local content; content=$(
             cat <<'HEADER'
-[&>/dev/null; touch "!---$$"; : ]: # (Please keep this and the comment below)
-<!---$$ &>/dev/null; rm -f "!---$$"
+[>/dev/null 2>&1; touch "!---$$"; : ]: # (Please keep this and the comment below)
+<!---$$ >/dev/null 2>&1; rm -f "!---$$"
 source Runbook.sh RUN "$@"
 ```
 source Runbook.sh
@@ -516,7 +542,7 @@ rb-show-total-runtime () {
     rb-info "Total runtime: $dt seconds"
 }
 
-# Main entry point to be called at the end of the runbook to
+# Main entry point to be called at the end of a runbook to
 # handle runbook options and start running tasks.
 rb-main () {
     # Work around the fact that 'column' might not be available on some system.
@@ -537,10 +563,20 @@ rb-main () {
             fi
         fi
     ) \
-       | column -ts\|
+      |
+    column -ts\|
+
     if [[ ${RB_CLI_OPTS[list-steps]:-} || ${RB_CLI_OPTS[list-tasks]:-} ]]; then
         exit
     fi
+
+    # shortcut to run Task/$1 if no -s nor -t are specified
+    if ! [[ ${RB_CLI_OPTS[step-list]:-} || ${RB_CLI_OPTS[task-list]:-} ]]; then
+        if [[ ${1:-} ]] && declare -F "Task/$1"; then
+            RB_CLI_OPTS[task-list]=Task/$1
+        fi
+    fi
+
     local oset=$(shopt -op noglob || true); set -f
     RB_STEPS=($(rb-list-steps))
     RB_TASKS=(
