@@ -33,6 +33,17 @@
 #  - Add an option to resume from the last failed step.
 #
 
+# Check the requirements first. NOTE: Keep this check parsable by old versions
+# of Bash, so that it can run before Bash gets to the code it can't parse.
+if (( BASH_VERSINFO[0] < 5 )); then
+    echo "Runbook.md: Bash 5.0 or newer is required, but this is Bash $BASH_VERSION." >&2
+    exit 1
+fi
+if [[ $(awk --version 2>/dev/null) != "GNU Awk"* ]]; then
+    echo "Runbook.md: GNU awk (gawk) is required as 'awk'." >&2
+    exit 1
+fi
+
 # If we are being sourced and told to RUN the sourcing doc
 if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
     shift # the 'RUN'
@@ -182,7 +193,6 @@ fi
 
 set -eEo pipefail
 shopt -s inherit_errexit compat43
-#FIXME: check for bash version to support at least Bash 4.3 as well.
 
 # Save the path to the original runbook file as $0
 if [[ ${RB_FROM_STDIN:-} ]]; then
@@ -437,7 +447,7 @@ _rb-compute-steps-range () {
     for range in "${ranges[@]}"; do
         [[ $range =~ $range_regex ]] || {
             # might be a task function name
-            local r=$(set +o pipefail; fgrep -m1 -xn "$range" <<<"$task_names" | cut -d: -f1)
+            local r=$(set +o pipefail; grep -F -m1 -xn "$range" <<<"$task_names" | cut -d: -f1)
             if [[ ! $r ]]; then
                 rb-error "Invalid task range spec: ${range}"
                 rb-fail
@@ -467,7 +477,7 @@ rb-list-steps () (
     local func_names; func_names=$(
         declare -F \
           | cut -d' ' -f3- \
-          | egrep "${RB_STEP_REGEX:?}" || true
+          | grep -E "${RB_STEP_REGEX:?}" || true
     )
     [[ $func_names ]] || return 0
 
@@ -480,7 +490,7 @@ rb-list-steps () (
 )
 
 rb-list-tasks () {
-    declare -F | cut -d' ' -f3- | egrep "${RB_TASK_REGEX:?}" || true
+    declare -F | cut -d' ' -f3- | grep -E "${RB_TASK_REGEX:?}" || true
 }
 
 # Print "LINENO FILE" of where a function is defined.
@@ -582,7 +592,7 @@ rb-run-tasks () {
             if [[ ! ${RB_CLI_OPTS[step-list]:-} || ${RB_STEPS_TO_RUN[$_rb_step_i]:-} ]]; then
                 rb-run "$task"
             else
-                rb-info "*** Skipped $task due to unspecified step nubmer: $_rb_step_i ***"
+                rb-info "*** Skipped $task due to unspecified step number: $_rb_step_i ***"
             fi
         done
         unset -v _rb_step_i

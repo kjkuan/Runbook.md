@@ -29,6 +29,8 @@ selective task execution, ... etc.
   invoked individually in a specific order.
 
 ## Installation and Usage
+**Requirements**: Bash 5.0 or newer, and GNU awk (gawk) as `awk`.
+
 1. Fork this repo.
 2. Start writing your runbook in Markdown! You can put it in the `runbooks/`
    folder, in which there's an [example](runbooks/Example.md) runbook to get
