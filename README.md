@@ -39,9 +39,9 @@ selective task execution, ... etc.
 
        $ ./Runbook.sh -x myrunbook.md
 
-   which will add the HTML header and footer comments to the specified file
-   and will make it executable.
-    
+   This will add some HTML header and footer comments to the specified file to
+   make it executable.
+
 3. To execute a runbook, do it from the root of the repo. You can either run it
    with Bash explicitly:
 
@@ -90,6 +90,7 @@ this:
     echo "Hello Runbook.md"
     echo "Start Time: $(date)"
     ```
+
 will be executed as Bash commands in the shell process of the runbook, in the
 order they appear in it. You are, of course, free to define functions or
 `source` shell libraries, ... etc, or even run arbitrary commands in such
@@ -144,7 +145,8 @@ be written more succinctly as:
         echo "This is $FUNCNAME"
     ```
 
-Or, if you prefer to spell out `function` explicitly:
+Note that `()` after the function name is optional too. Or, if you prefer to
+spell out `function` explicitly:
 
     ```bash function my-func
         echo "This is $FUNCNAME"
@@ -187,7 +189,7 @@ To list the tasks, run it with the `-lt` option:
 
 Run all the steps:
 
-    $ ./runbooks/Example.md -s
+    $ ./runbooks/Example.md
 
 Run from Step 2:
 
@@ -214,13 +216,16 @@ command to enable dependency tracking. For example,
     rb-run Task/dependency_1  # task won't be executed since it's been run by rb-run
 
 
-Note that task executions are tracked by the task / step name and their
+Note that task executions are tracked by the task / step name *and* their
 arguments. For example,
 
 
     rb-run Task/dependency_1 arg1  # runs the task with arg1
-    rb-run Task/dependency_1 arg2  # runs the task with arg2 since the task + argument combination hasn't been run.
-    rb-run Task/dependency_1 arg1  # won't run the task since the command "Task/dependency_1 arg1" has been run.
+    rb-run Task/dependency_1 arg2  # runs the task with arg2 since the task + argument
+                                   # combination hasn't been run.
+
+    rb-run Task/dependency_1 arg1  # won't run the task since the command "Task/dependency_1 arg1"
+                                   # has been run.
 
 
 
