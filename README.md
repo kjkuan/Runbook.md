@@ -56,15 +56,15 @@ Don't want to fork and clone a repo? No problem. You can "install" **Runbook.md*
 by simply downloading and saving [Runbook.sh](Runbook.sh) to a directory listed
 in your `PATH` environment variable. E.g.,:
 
-```bash
-read -rp "Install the latest Runbook.md (Y/n)? "
-case ${REPLY,,} in
-  y|yes)
-    url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh
-    curl -fSs "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
-    ;;
-  *) echo "Okay, take your time~" ;;
-esac
+```bash Step/install
+    read -rp "Install the latest Runbook.md (Y/n)? "
+    case ${REPLY,,} in
+      ''|y|yes)
+        local url=https://raw.githubusercontent.com/kjkuan/Runbook.md/main/Runbook.sh
+        curl -fSs "$url" | sudo tee /usr/local/bin/Runbook.sh >/dev/null
+        ;;
+      *) echo "Okay, take your time~" ;;
+    esac
 ```
 
 Now as long as your Markdown file has the header and footer comment sections as
