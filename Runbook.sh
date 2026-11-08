@@ -198,7 +198,7 @@ else
 fi
 
 RB_START_TIME=$EPOCHREALTIME
-RB_LOG_DIR=${RB_LOG_DIR:-"$PWD/log"}
+RB_LOG_DIR=${RB_LOG_DIR-"$PWD/log"}
 RB_LOG_FROM_START=${RB_LOG_FROM_START:-}
 RB_STEP_REGEX=${RB_STEP_REGEX:-^Step/}
 RB_TASK_REGEX=${RB_TASK_REGEX:-^Task/}
@@ -297,7 +297,7 @@ _rb-tstamp-lines () {
 }
 rb-start-logging () {
     # if RB_LOG_DIR is set and empty then disable logging entirely.
-    if [[ ! ${RB_LOG_DIR-x} && ! $RB_LOG_DIR ]]; then
+    if [[ ! $RB_LOG_DIR ]]; then
         RB_STDOUT=1 RB_STDERR=2
         return 0
     fi
@@ -572,7 +572,7 @@ rb-main () {
 
     # shortcut to run Task/$1 if no -s nor -t are specified
     if ! [[ ${RB_CLI_OPTS[step-list]:-} || ${RB_CLI_OPTS[task-list]:-} ]]; then
-        if [[ ${1:-} ]] && declare -F "Task/$1"; then
+        if [[ ${1:-} ]] && declare -F "Task/$1" >/dev/null; then
             RB_CLI_OPTS[task-list]=Task/$1
         fi
     fi
