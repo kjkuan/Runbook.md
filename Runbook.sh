@@ -28,14 +28,7 @@
 #
 
 #TODOs:
-#  - Allow showing details about task functions with -h and -t?
-#    E.g., extract the comment paragraph before the function definition
-#    and use it as task description. We can also show the function
-#    source code!
-#
-#    With both options -h and -lt, we can show the first lines of task
-#    description as a summary beside the task names?
-#
+#  - Show the task function source code with -h TASK?
 #  - Add an option to confirm all step executions.
 #  - Add an option to resume from the last failed step.
 #
@@ -331,8 +324,11 @@ Usage: $0 [options] [args]
 Options:
     -h, --help        Show this help.
 
+    -h TASK           Show the description of TASK (a task name or a step number).
+
     -ls               List all steps in the order they are defined in the runbook.
     -lt               List all the non-step tasks defined in the runbook.
+                      With -h, -ls and -lt also show a summary of each task.
 
     -s, --steps=LIST  Run only steps specified by LIST, which is a list of comma
                       separated task indexes (as shown with option '-ls') and / or
@@ -389,7 +385,7 @@ rb-parse-options () {   # "$@"
     while (( $# )); do
         local opt=$1; shift
         case $opt in
-          -h|--help      ) rb-show-help; exit ;;
+          -h|--help) RB_CLI_OPTS[help]=x ;;
 
           -ls) RB_CLI_OPTS[list-steps]=x ;;
           -lt) RB_CLI_OPTS[list-tasks]=x ;;
@@ -422,6 +418,15 @@ rb-parse-options () {   # "$@"
            *) RB_CLI_ARGS=("$opt" "$@"); break ;;
         esac
     done
+
+    # Show the general help right away, unless -h is used with -ls, -lt or a
+    # task, in which case rb-main shows it once all tasks are defined.
+    if [[ ${RB_CLI_OPTS[help]:-} &&
+          ! ${RB_CLI_OPTS[list-steps]:-}${RB_CLI_OPTS[list-tasks]:-} &&
+          ! ${RB_CLI_ARGS[*]:-} ]]
+    then
+        rb-show-help; exit
+    fi
 }
 
 _rb-compute-steps-range () {
@@ -476,6 +481,84 @@ rb-list-steps () (
 
 rb-list-tasks () {
     declare -F | cut -d' ' -f3- | egrep "${RB_TASK_REGEX:?}" || true
+}
+
+# Print "LINENO FILE" of where a function is defined.
+# NOTE: Call it in a subshell (e.g., $(...) or <(...)), since it sets extdebug.
+_rb-function-location () {
+    shopt -s extdebug
+    declare -F "${1:?}" | cut -d' ' -f2-
+}
+
+# Print the description of the function defined at line $1 of the runbook,
+# which is the consecutive comment lines right above the function definition
+# within its fenced code block. A function declared in the opening fence line
+# (e.g., ```bash Task/foo) has no description.
+_rb-function-description () {
+    awk -v lineno="${1:?}" '
+        NR == lineno {
+            if ($0 !~ /^```/) for (j = 0; j < n; j++) print lines[j]
+            exit
+        }
+        /^[[:space:]]*#/ { lines[n++] = $0; next }
+                         { n = 0 }
+    ' "$0" | sed -E 's/^[[:space:]]*#+[[:space:]]?//'
+}
+
+# Print the first non-blank line of a function's description.
+_rb-function-summary () {
+    _rb-function-description "$1" | awk 'NF { print; exit }'
+}
+
+# Read function names from STDIN; print each with its summary if -h is given.
+_rb-add-summaries () {
+    local name lineno file
+    while read -r name; do
+        if [[ ${RB_CLI_OPTS[help]:-} ]]; then
+            read -r lineno file < <(_rb-function-location "$name")
+            local summary=
+            if [[ $file == @(main|environment|"$0") ]]; then
+                summary=$(_rb-function-summary "$lineno")
+            fi
+            printf '%s\t%s\n' "$name" "$summary"
+        else
+            echo "$name"
+        fi
+    done
+}
+
+# Show detailed help of a task, specified by its function name, its name
+# without the 'Task/' prefix, or its step number.
+rb-show-task-help () {
+    local name=${1:?} task steps lineno file indent='        '
+    mapfile -t steps < <(rb-list-steps)
+    if [[ $name =~ ^[1-9][0-9]*$ ]] && (( name <= ${#steps[*]} )); then
+        task=${steps[name - 1]}
+    else
+        for task in "$name" "Task/$name" ''; do
+            if [[ $task =~ $RB_TASK_REGEX || $task =~ $RB_STEP_REGEX ]] &&
+               declare -F "$task" >/dev/null
+            then
+                break
+            fi
+        done
+        [[ $task ]] || rb-die "Unknown task: $name"
+    fi
+    read -r lineno file < <(_rb-function-location "$task")
+
+    echo -e "${RB_CYAN}TASK${RB_NC}"
+    echo "$indent$task  (${0#"$PWD/"}:$lineno)"
+    echo
+    echo -e "${RB_CYAN}DESCRIPTION${RB_NC}"
+    local desc=
+    if [[ $file == @(main|environment|"$0") ]]; then
+        desc=$(_rb-function-description "$lineno")
+    fi
+    if [[ $desc ]]; then
+        sed "s/^/$indent/" <<<"$desc" | fmt -s
+    else
+        echo "${indent}(No description)"
+    fi
 }
 
 _rb-calculate-duration () {
@@ -548,26 +631,33 @@ rb-show-total-runtime () {
 rb-main () {
     # Work around the fact that 'column' might not be available on some system.
     if ! type -P column >/dev/null; then
-        column () { cut -d\| -f2 | nl -bp"$RB_STEP_REGEX" -w7; }
+        column () { sed $'s/\t/  /g'; }
     fi
     (
         if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
-            rb-list-steps | nl -ba -s\| -w3
+            rb-list-steps | _rb-add-summaries | nl -ba -s$'\t' -w3
         fi
         if [[ ${RB_CLI_OPTS[list-tasks]:-} ]]; then
             rb-list-tasks \
                 |
+            _rb-add-summaries \
+                |
             if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
-                sed 's/^/  -|/'
+                sed $'s/^/  -\t/'
             else
                 cat
             fi
         fi
     ) \
       |
-    column -ts\|
+    column -ts$'\t'
 
     if [[ ${RB_CLI_OPTS[list-steps]:-} || ${RB_CLI_OPTS[list-tasks]:-} ]]; then
+        exit
+    fi
+
+    if [[ ${RB_CLI_OPTS[help]:-} ]]; then
+        rb-show-task-help "${1:?}"
         exit
     fi
 

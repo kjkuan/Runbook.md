@@ -22,6 +22,11 @@ Steps are deliberately defined in non-alphabetical order.
 ```
 
 ```bash
+#
+# Print the runbook arguments.
+#
+# They are the arguments after -- on the command line.
+#
 Task/args () {
     echo "args: ${RB_CLI_ARGS[*]}"
 }

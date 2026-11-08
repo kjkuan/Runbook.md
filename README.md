@@ -205,6 +205,43 @@ neither `-s` nor `-t` are specified:
     $ ./runbooks/Example.md Page-2nd-level-on-call
 
 
+## Describing Steps and Tasks
+Comment lines right above a step or task function definition, within its fenced
+code block, become the description of the step or task:
+
+    ```bash
+    # Check whether the service is up.
+    #
+    # Run this after the maintenance, or any time you suspect an outage.
+    #
+    Task/Check-Service-Status () {
+        ...
+    }
+    ```
+
+Use `-h` with a task name (the `Task/` prefix is optional) or a step number to
+see its description:
+
+    $ ./runbooks/Example.md -h Check-Service-Status
+    TASK
+            Task/Check-Service-Status  (runbooks/Example.md:57)
+
+    DESCRIPTION
+            Check whether the service is up.
+
+            Run this after the maintenance, or any time you suspect an outage.
+
+Use `-h` with `-ls` and / or `-lt` to also list the first line of each
+description:
+
+    $ ./runbooks/Example.md -h -lt
+    Task/Check-Service-Status    Check whether the service is up.
+    Task/Page-2nd-level-on-call  Page the 2nd level on-call engineer for help.
+
+Note that a function declared on the opening fence line (e.g., <code>```bash Step</code>)
+has no description, since there's no line above it within its code block.
+
+
 ## Tracking Task / Step Dependencies
 To avoid repeating tasks or steps that have been executed, **Runbook.md**
 by default keeps track of executed tasks for you when a task / step is executed.

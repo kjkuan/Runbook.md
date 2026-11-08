@@ -50,6 +50,10 @@ event:
 
 Task to check the status of the service:
 ```bash
+# Check whether the service is up.
+#
+# Run this after the maintenance, or any time you suspect an outage.
+#
 Task/Check-Service-Status () {
     echo Checking service status ...
     echo Service is Up.
@@ -58,6 +62,8 @@ Task/Check-Service-Status () {
 
 Task to page for help:
 ```bash
+# Page the 2nd level on-call engineer for help.
+#
 Task/Page-2nd-level-on-call () {
     echo 'Help!!!'
 }
