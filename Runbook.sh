@@ -60,7 +60,7 @@ if [[ $0 != "$BASH_SOURCE" && $1 == RUN ]]; then
                     match($0, /([{(])\s*$/, tokens)
                     BRACKET = tokens[1]
                     gsub(/^\s*function\s+/, "")
-                    gsub(/^Step(\s|$)/, "Step/" ++STEP)
+                    if ($0 ~ /^Step(\s|$)/) sub(/^Step/, "Step/" ++STEP)
                     print "function", $0, BRACKET ? "" : "{"
                 } else
                     print "#", line
@@ -132,12 +132,13 @@ Task/do-something () {
 ```
 EOF
         fi
-        local token1 token2
-        while read -r token1 token2 _; do
-            [[ $token1 ]] || continue
-            [[ $token2 ]] && break
+        # Check the first non-blank line for the header. The '[&>/dev/null; touch'
+        # form is the header written by older versions of Runbook.md.
+        local line
+        while read -r line; do
+            [[ $line ]] && break
         done < "$file"
-        if [[ "$token1 $token2" == '[>/dev/null 2>&1; touch' ]]; then
+        if [[ $line == '[>/dev/null 2>&1; touch '* || $line == '[&>/dev/null; touch '* ]]; then
             echo "It looks like $file has already been decorated by Runbook.md."
             chmod +x "$file"
             exit
