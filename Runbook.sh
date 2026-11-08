@@ -696,6 +696,11 @@ rb-main () {
     local step_ranges=${RB_CLI_OPTS[step-list]:-}
     [[ ! $step_ranges ]] || _rb-compute-steps-range "$step_ranges" ${#RB_STEPS[*]}
 
+    # Let the runbook validate the env vars it expects before running anything.
+    if declare -F rb-validate-env >/dev/null; then
+        rb-validate-env
+    fi
+
     RB_EXIT_CMDS+=(rb-show-total-runtime)
 
     [[ ${RB_LOG_FROM_START:-} ]] || rb-start-logging

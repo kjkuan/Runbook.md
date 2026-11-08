@@ -244,6 +244,27 @@ Note that a function declared on the opening fence line (e.g., <code>```bash Ste
 has no description, since there's no line above it within its code block.
 
 
+## Validating Environment Variables
+
+A runbook can take its inputs from environment variables. To check them before
+running any steps or tasks, define a function named `rb-validate-env`:
+
+    ```bash
+    # Expects:
+    #   TARGET_HOST - host to run the maintenance on
+    #   TICKET      - change ticket ID, e.g., CHG12345
+    #
+    rb-validate-env () {
+        [[ ${TARGET_HOST:-} ]] || rb-die "TARGET_HOST is not set!"
+        [[ ${TICKET:-} =~ ^CHG[0-9]+$ ]] || rb-die "TICKET must be a change ticket ID!"
+    }
+    ```
+
+If defined, `rb-validate-env` is called right before running the selected steps
+and tasks, and before logging starts. It's not called when listing steps or tasks
+(`-ls`, `-lt`) or showing help (`-h`). If it fails, nothing is run.
+
+
 ## Tracking Task / Step Dependencies
 To avoid repeating tasks or steps that have been executed, **Runbook.md**
 by default keeps track of executed tasks for you when a task / step is executed.
