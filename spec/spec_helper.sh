@@ -6,7 +6,7 @@ PATH="$SHELLSPEC_PROJECT_ROOT:$PATH"
 # Plain, predictable output: no ANSI colors, no log files unless a test asks.
 export NO_COLOR=1
 export RB_LOG_DIR=
-unset RB_LOG_FROM_START RB_DUMP RB_STEP_REGEX RB_TASK_REGEX
+unset RB_LOG_FROM_START RB_DUMP RB_STEP_REGEX RB_TASK_REGEX RB_TRACE
 
 FIXTURES="$SHELLSPEC_PROJECT_ROOT/spec/fixtures"
 

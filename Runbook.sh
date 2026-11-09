@@ -313,18 +313,24 @@ rb-start-logging () {
     rb-info "Detailed runbook logs can be found in $RB_LOG_DIR/"
 
     local output_log=$RB_LOG_DIR/${0##*/}_$tstamp.log
-    local trace_log=$RB_LOG_DIR/${0##*/}_$tstamp.trace
-    touch "$output_log" "$trace_log"
+    touch "$output_log"
     ln -nfs "$output_log" "${output_log%/*}/${0##*/}.log"
-    ln -nfs "$trace_log" "${trace_log%/*}/${0##*/}.trace"
 
-    exec {logfd}> >(set +x; _rb-tstamp-lines $tfmt > "$trace_log")
-    BASH_XTRACEFD=$logfd
-    if [[ $PS4 == "+ " ]]; then
-        #export PS4='+ $BASH_SOURCE:$LINENO in (${FUNCNAME[*]:0:${#FUNCNAME[*]}-1}): '
-        export PS4='+ $FUNCNAME():$LINENO: '
+    # The trace log has every command executed, with all expansions, which might
+    # include secrets; so it's only written if RB_TRACE is non-empty.
+    if [[ ${RB_TRACE:-} ]]; then
+        local trace_log=$RB_LOG_DIR/${0##*/}_$tstamp.trace
+        touch "$trace_log"
+        ln -nfs "$trace_log" "${trace_log%/*}/${0##*/}.trace"
+
+        exec {logfd}> >(set +x; _rb-tstamp-lines $tfmt > "$trace_log")
+        BASH_XTRACEFD=$logfd
+        if [[ $PS4 == "+ " ]]; then
+            #export PS4='+ $BASH_SOURCE:$LINENO in (${FUNCNAME[*]:0:${#FUNCNAME[*]}-1}): '
+            export PS4='+ $FUNCNAME():$LINENO: '
+        fi
+        set -x
     fi
-    set -x
     exec 1> >(exec tee >(set +x; _rb-tstamp-lines $tfmt > "$output_log")) 2>&1
 }
 
@@ -388,6 +394,9 @@ Environment variable options:
     RB_LOG_FROM_START  - If set to non-empty, start logging at the start of the runbook
                          script's execution. (Default is to start logging only when task
                          execution starts)
+
+    RB_TRACE           - Set to non-empty to also write a trace log, which has every
+                         command executed with all expansions. (Beware of secrets!)
 
     RB_STEP_REGEX      - Regex used to match a step function. Defaults to ^Step/
 

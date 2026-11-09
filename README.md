@@ -22,8 +22,9 @@ selective task execution, ... etc.
 ## Features
 - Error reporting includes stack traces back to the correct lines in the
   Markdown document.
-- Runbook logging includes both normal output logs, as well as, detailed
+- Runbook logging includes normal output logs, as well as, optionally, detailed
   trace logs with all command expansions for ease of debugging and auditing.
+  (See [Trace Logs](#trace-logs))
 - Organize your runbook with task functions, which are either discrete steps
   that can be executed sequentially and selectively, or are tasks that can be
   invoked individually in a specific order.
@@ -322,6 +323,25 @@ arguments. For example,
     rb-run Task/dependency_1 arg1  # won't run the task since the command "Task/dependency_1 arg1"
                                    # has been run.
 
+
+## Trace Logs
+Besides the output log, **Runbook.md** can also write a trace log (`set -x`),
+which has every command executed with all expansions. Since that can include
+secrets, such as tokens and passwords, the trace log is only written if the
+`RB_TRACE` environment variable is set to a non-empty value:
+
+    $ RB_TRACE=x ./runbooks/Example.md
+
+To trace every run of a runbook by default, set `RB_TRACE` at the top of the
+runbook, in a way that still lets it be turned off by setting it to an empty
+string (`RB_TRACE= ./runbooks/Example.md`):
+
+    ```bash
+    : "${RB_TRACE=x}"
+    ```
+
+Note that with `RB_LOG_FROM_START`, logging starts before any of your runbook's
+code runs, so `RB_TRACE` must be set in the environment instead.
 
 
 ## See also the [FAQ](FAQ.md)

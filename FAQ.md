@@ -11,6 +11,7 @@ script with source lines numbered with:
 
 ## Q: I've added `set -x` in my runbook, but I'm not seeing its output when I run it.
 ## Answer:
+If the `RB_TRACE` environment variable is set to a non-empty value,
 **Runbook.md** already does `set -x` for you and redirects its output to the
 trace log file, which by default is saved in `./log`. Additionally, you can
 control when **Runbook.md** starts logging your runbook execution. By default,

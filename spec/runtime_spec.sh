@@ -69,13 +69,48 @@ step two"
     setup() { LOGDIR=$(make_tmpdir)/log; }
     Before setup
 
-    It 'writes output and trace logs to RB_LOG_DIR'
+    # Names of the trace log files in the log directory.
+    trace_files() { ls "$LOGDIR" | grep '\.trace$' || true; }
+
+    It 'writes only the output log to RB_LOG_DIR by default'
       export_logdir() { RB_LOG_DIR=$LOGDIR runbook "$@"; }
       When run export_logdir basic.md -q -s 1
       The status should be success
       The output should include 'step zeta'
       The path "$LOGDIR/basic.md.log" should be symlink
+      The path "$LOGDIR/basic.md.trace" should not be exist
+      The result of function "trace_files" should eq ''
+    End
+
+    It 'also writes the trace log when RB_TRACE is non-empty'
+      export_logdir() { RB_LOG_DIR=$LOGDIR RB_TRACE=x runbook "$@"; }
+      When run export_logdir basic.md -q -s 1
+      The status should be success
+      The output should include 'step zeta'
+      The path "$LOGDIR/basic.md.log" should be symlink
       The path "$LOGDIR/basic.md.trace" should be symlink
+    End
+
+    It 'traces the executed commands in the trace log'
+      # Wait for the trace log writer to finish, after the runbook exits.
+      run_and_read_trace() {
+          RB_LOG_DIR=$LOGDIR RB_TRACE=x runbook "$@" >/dev/null
+          local i; for ((i = 0; i < 50; i++)); do
+              grep -q 'echo .step zeta' "$LOGDIR/basic.md.trace" 2>/dev/null && break
+              sleep 0.1
+          done
+          cat "$LOGDIR/basic.md.trace"
+      }
+      When run run_and_read_trace basic.md -s 1
+      The output should include "echo 'step zeta'"
+    End
+
+    It 'writes no trace log when RB_TRACE is set but empty'
+      export_logdir() { RB_LOG_DIR=$LOGDIR RB_TRACE= runbook "$@"; }
+      When run export_logdir basic.md -q -s 1
+      The status should be success
+      The output should include 'step zeta'
+      The path "$LOGDIR/basic.md.trace" should not be exist
     End
 
     It 'writes no logs when RB_LOG_DIR is empty'
