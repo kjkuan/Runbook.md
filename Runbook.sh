@@ -279,6 +279,7 @@ rb-dump-stack-trace () {
 trap 'rb-dump-stack-trace $LINENO "$FUNCNAME" "$BASH_SOURCE"' ERR
 
 rb-run-exit-commands () {
+    RB_EXIT_STATUS=$?
     set +e  # so that we do as much clean up as possible.
 
     # Restore stdout and stderr so that in the case of an interactive Ctrl-C,
@@ -362,6 +363,8 @@ Options:
                       Unless a step is also specified with '-s', no steps will be run when
                       this option is used. This option can be specified multiple times.
 
+    -i, --interactive Confirm before running each selected step or task.
+
     -y, --yes         Say yes to all task confirmation prompts.
 
     -q, --quiet       Suppress Runbook.md's STDOUT logs about task executions.
@@ -418,6 +421,7 @@ rb-parse-options () {   # "$@"
               fi
               ;;
 
+          -i|--interactive) RB_CLI_OPTS[interactive]=x ;;
           -y|--yes) RB_CLI_OPTS[yes]=x ;;
 
           -q|--quiet) rb-info () { :; } ;;
@@ -579,36 +583,70 @@ _rb-calculate-duration () {
     dt=${dt%???}.${f:-000}
 }
 
+# Print "STEP_NUMBER<TAB>NAME<TAB>SELECTED" for the steps in their definition
+# order, followed by the tasks in the order specified in the CLI. SELECTED is
+# 'x', or empty for a step not selected with -s. A task's step number is '-'.
+#
+_rb-run-list () {
+    local task i=0 selected
+    if [[ ! ${RB_CLI_OPTS[task-list]:-} || ${RB_CLI_OPTS[step-list]:-} ]]; then
+        for task in "${RB_STEPS[@]}"; do
+            i=$(( i + 1 ))
+            selected=
+            if [[ ! ${RB_CLI_OPTS[step-list]:-} || ${RB_STEPS_TO_RUN[$i]:-} ]]; then
+                selected=x
+            fi
+            printf '%s\t%s\t%s\n' "$i" "$task" "$selected"
+        done
+    fi
+    for task in "${RB_TASKS[@]}"; do
+        printf -- '-\t%s\tx\n' "$task"
+    done
+}
+
 # Run the steps specified in their definition order first, then
 # run the tasks in the order specified in the CLI.
 #
 rb-run-tasks () {
-    local task
-
-    if [[ ! ${RB_CLI_OPTS[task-list]:-} || ${RB_CLI_OPTS[step-list]:-} ]]; then
-        local _rb_step_i=0
-        for task in "${RB_STEPS[@]}"; do
-            (( ++_rb_step_i ))
-            if [[ ! ${RB_CLI_OPTS[step-list]:-} || ${RB_STEPS_TO_RUN[$_rb_step_i]:-} ]]; then
-                rb-run "$task"
-            else
-                rb-info "*** Skipped $task due to unspecified step number: $_rb_step_i ***"
-            fi
-        done
-        unset -v _rb_step_i
-    fi
-
-    for task in "${RB_TASKS[@]}"; do
+    local rows row _rb_step_i task selected
+    mapfile -t rows < <(_rb-run-list)
+    for row in "${rows[@]}"; do
+        IFS=$'\t' read -r _rb_step_i task selected <<<"$row"
+        if [[ ! $selected ]]; then
+            rb-info "*** Skipped $task due to unspecified step number: $_rb_step_i ***"
+            continue
+        fi
+        [[ $_rb_step_i != - ]] || _rb_step_i=
         rb-run "$task"
     done
 }
 
 rb-run () {
     local task=${1:?} key="$*"; shift
-    [[ ! ${RB_TASK[$key@run_by]:-} ]] || return 0
+
+    # Whether it's a step or task selected to run, rather than a dependency.
+    local selected=; [[ ${FUNCNAME[1]:-} != rb-run-tasks ]] || selected=x
+
+    if [[ ${RB_TASK[$key@run_by]:-} ]]; then
+        if [[ $selected && ! ${RB_TASK[$key@status]:-} ]]; then
+            _rb-set-run-status "$key" 'already run'
+        fi
+        return 0
+    fi
 
     local t1 t2 dt step_note
     [[ $task =~ $RB_STEP_REGEX ]] && [[ ${_rb_step_i:-} ]] && step_note="Step $_rb_step_i" || step_note=
+
+    if [[ $selected ]]; then
+        if [[ ${RB_CLI_OPTS[interactive]:-} ]] &&
+           ! _rb-ask-yes-skip-quit "Run $task${step_note:+" ($step_note)"}"
+        then
+            rb-info "*** Skipped $task ***"
+            _rb-set-run-status "$key" skipped
+            return 0
+        fi
+        _rb-set-run-status "$key" running
+    fi
 
     rb-info "${RB_YELLOW}=== Executing $task${*:+" $*"} ${step_note:+"($step_note) "}=========================="
     t1=$EPOCHREALTIME
@@ -616,6 +654,7 @@ rb-run () {
     t2=$EPOCHREALTIME
     _rb-calculate-duration
     rb-info "${RB_GREEN}=== Successfully executed $task${*:+" $*"} (${step_note:+"$step_note; "}took $dt seconds) =============="
+    [[ ! $selected ]] || _rb-set-run-status "$key" ok
 
     local i
     for ((i=1; i < ${#FUNCNAME[*]}; i++)); do
@@ -627,6 +666,79 @@ rb-run () {
         fi
     done
     RB_TASK[$key@run_by]=${FUNCNAME[1]:-0}
+}
+
+# Record the status of a step or task selected to run, and its duration once
+# it's no longer running.
+_rb-set-run-status () {   # KEY STATUS
+    local key=${1:?} t1 t2 dt
+    if [[ ${2:?} == running ]]; then
+        # The previous one is still running only if it skipped the rest of
+        # itself with Runbook/confirm-continue-task.
+        if [[ ${RB_RUN_CURRENT:-} && ${RB_TASK[$RB_RUN_CURRENT@status]} == running ]]; then
+            _rb-set-run-status "$RB_RUN_CURRENT" skipped
+        fi
+        RB_RUN_CURRENT=$key
+        RB_TASK[$key@start]=$EPOCHREALTIME
+    elif [[ ${RB_TASK[$key@start]:-} ]]; then
+        t1=${RB_TASK[$key@start]} t2=$EPOCHREALTIME
+        _rb-calculate-duration
+        RB_TASK[$key@time]=$dt
+    fi
+    RB_TASK[$key@status]=$2
+}
+
+# Ask a [Y]es/[S]kip/[Q]uit question, unless -y is given. Return 0 for yes,
+# or 1 for skip; exit the runbook for quit.
+_rb-ask-yes-skip-quit () {   # QUESTION
+    [[ ! ${RB_CLI_OPTS[yes]:-} ]] || return 0
+    local ans
+    while true; do
+        read -u "${RB_STDIN:?}" -rp "Runbook.md: $1 ([Y]es/[S]kip/[Q]uit)? " ans ||
+            rb-die "No answer to the confirmation prompt (end of input)."
+        case ${ans,,} in
+          y|yes ) return 0 ;;
+          s|skip) return 1 ;;
+          q|quit) exit ;;
+        esac
+    done
+}
+
+# Show the status and duration of each step and task selected to run.
+rb-show-run-summary () {
+    local rows step task status line color
+    rows=$(_rb-run-list | grep $'\tx$' || true)
+    [[ $rows ]] || return 0
+
+    rb-info "Summary:"
+    while IFS=$'\t' read -r step task _; do
+        status=${RB_TASK[$task@status]:-not run}
+        if [[ $status == running ]]; then  # it's where the runbook exited
+            if (( RB_EXIT_STATUS )); then
+                status=FAILED
+            elif [[ ${RB_RUN_DONE:-} ]]; then
+                status=skipped
+            else
+                status=stopped
+            fi
+            _rb-set-run-status "$task" "$status"
+        fi
+        printf '%3s\t%s\t%s\t%s\n' "$step" "$task" "$status" \
+               "${RB_TASK[$task@time]:+${RB_TASK[$task@time]}s}"
+    done <<<"$rows" \
+      |
+    column -ts$'\t' \
+      |
+    while IFS= read -r line; do
+        line=${line%"${line##*[! ]}"}  # strip the padding of an empty last column
+        case $line in
+          *' ok '*     ) color=$RB_GREEN ;;
+          *' FAILED '* ) color=$RB_RED ;;
+          *' not run'  ) color=$RB_GRAY ;;
+          *            ) color=$RB_YELLOW ;;
+        esac
+        rb-info "$color$line"
+    done
 }
 
 rb-show-total-runtime () {
@@ -701,31 +813,24 @@ rb-main () {
         rb-validate-env
     fi
 
-    RB_EXIT_CMDS+=(rb-show-total-runtime)
+    RB_EXIT_CMDS+=(rb-show-total-runtime rb-show-run-summary)
 
     [[ ${RB_LOG_FROM_START:-} ]] || rb-start-logging
     rb-run-tasks
+    RB_RUN_DONE=x
 }
 
 # ---- Utility functions that tasks can use ----------------------------------
 
 Runbook/confirm-continue-task () {
-    [[ ! ${RB_CLI_OPTS[yes]:-} ]] || return 0
-
-    [[ $$ == $BASHPID ]] || {
+    [[ ${RB_CLI_OPTS[yes]:-} || $$ == $BASHPID ]] || {
         rb-error "$FUNCNAME doesn't work in a subshell! Exiting ..."
         kill $BASHPID
     }
-    local ans
-    while true; do
-        read -u ${RB_STDIN:?} -rp "Runbook.md: Continue ${FUNCNAME[1]} ([Y]es/[S]kip/[Q]uit)? " ans
-        case ${ans,,} in
-          y|yes ) break ;;
-          s|skip) rb-info "*** Skipping the rest of ${FUNCNAME[1]} ***"; continue 2 ;;
-          q|quit) exit ;;
-               *) continue ;;
-        esac
-    done
+    if ! _rb-ask-yes-skip-quit "Continue ${FUNCNAME[1]}"; then
+        rb-info "*** Skipping the rest of ${FUNCNAME[1]} ***"
+        continue  # the loop in rb-run-tasks (see shopt compat43)
+    fi
 }
 # ----------------------------------------------------------------------------
 

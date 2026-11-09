@@ -12,7 +12,7 @@ hello b"
 
   Describe 'error handling'
     It 'stops at the failing step and exits non-zero'
-      When run runbook fail.md
+      When run runbook fail.md -q
       The status should be failure
       The output should include 'ok'
       The output should include 'before'

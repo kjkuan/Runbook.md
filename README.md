@@ -206,6 +206,34 @@ neither `-s` nor `-t` are specified:
 
     $ ./runbooks/Example.md Page-2nd-level-on-call
 
+To confirm before running each selected step or task, use the `-i` option.
+For each one, you can answer **Y**es to run it, **S**kip it, or **Q**uit the
+runbook:
+
+    $ ./runbooks/Example.md -i
+    Runbook.md: Run Step/1 (Step 1) ([Y]es/[S]kip/[Q]uit)?
+
+Note that `-i` only confirms the steps and tasks selected to run (with `-s`
+and `-t`, or all the steps by default), not the ones they run themselves with
+`rb-run` (see [Tracking Task / Step Dependencies](#tracking-task--step-dependencies)).
+To confirm an action within a step or task, call `Runbook/confirm-continue-task`
+right before it. Answering **S**kip to that skips the rest of the step or task.
+The `-y` option answers **Y**es to all these confirmations.
+
+At the end of a run, **Runbook.md** shows a summary of the selected steps and
+tasks: whether each one was run successfully (`ok`), `skipped`, `already run`
+(by another step or task with `rb-run`), `FAILED`, `stopped` (by quitting at a
+confirmation), or `not run`, and how long it took:
+
+    $ ./runbooks/Example.md -y -s -2 -t Task/Check-Service-Status
+    ...
+    Runbook.md: Summary:
+    Runbook.md:   1  Step/1                     ok  0.000s
+    Runbook.md:   2  Step/2                     ok  7.010s
+    Runbook.md:   -  Task/Check-Service-Status  ok  0.000s
+    Runbook.md: Done.
+    Runbook.md: Total runtime: 7.038 seconds
+
 
 ## Describing Steps and Tasks
 Comment lines right above a step or task function definition, within its fenced
@@ -245,7 +273,6 @@ has no description, since there's no line above it within its code block.
 
 
 ## Validating Environment Variables
-
 A runbook can take its inputs from environment variables. To check them before
 running any steps or tasks, define a function named `rb-validate-env`:
 
