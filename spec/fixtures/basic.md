@@ -13,8 +13,11 @@ Steps are deliberately defined in non-alphabetical order.
     echo "step zeta"
 ```
 
-```bash Step/alpha
+```bash
+# The alpha step.
+Step/alpha () {
     echo "step alpha"
+}
 ```
 
 ```bash Task/hello

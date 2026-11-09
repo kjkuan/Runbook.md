@@ -338,8 +338,10 @@ Options:
     -h TASK           Show the description of TASK (a task name or a step number).
 
     -ls               List all steps in the order they are defined in the runbook.
-    -lt               List all the non-step tasks defined in the runbook.
-                      With -h, -ls and -lt also show a summary of each task.
+                      With -h, also show a summary of each step.
+
+    -lt               List all the non-step tasks defined in the runbook, with a
+                      summary of each.
 
     -s, --steps=LIST  Run only steps specified by LIST, which is a list of comma
                       separated task indexes (as shown with option '-ls') and / or
@@ -524,11 +526,12 @@ _rb-function-summary () {
     _rb-function-description "$1" | awk 'NF { print; exit }'
 }
 
-# Read function names from STDIN; print each with its summary if -h is given.
-_rb-add-summaries () {
+# Read function names from STDIN; print each with its summary if -h is given,
+# or if the first argument is non-empty.
+_rb-add-summaries () {   # [ALWAYS]
     local name lineno file
     while read -r name; do
-        if [[ ${RB_CLI_OPTS[help]:-} ]]; then
+        if [[ ${1:-} || ${RB_CLI_OPTS[help]:-} ]]; then
             read -r lineno file < <(_rb-function-location "$name")
             local summary=
             if [[ $file == @(main|environment|"$0") ]]; then
@@ -762,7 +765,7 @@ rb-main () {
         if [[ ${RB_CLI_OPTS[list-tasks]:-} ]]; then
             rb-list-tasks \
                 |
-            _rb-add-summaries \
+            _rb-add-summaries always \
                 |
             if [[ ${RB_CLI_OPTS[list-steps]:-} ]]; then
                 sed $'s/^/  -\t/'
@@ -772,7 +775,9 @@ rb-main () {
         fi
     ) \
       |
-    column -ts$'\t'
+    column -ts$'\t' \
+      |
+    sed 's/[[:space:]]*$//'  # strip the padding of an empty last column
 
     if [[ ${RB_CLI_OPTS[list-steps]:-} || ${RB_CLI_OPTS[list-tasks]:-} ]]; then
         exit

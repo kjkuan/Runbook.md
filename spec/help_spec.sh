@@ -57,26 +57,35 @@ Describe 'Task descriptions (-h)'
     End
   End
 
-  Describe '-h with -ls / -lt'
-    It 'shows the first non-blank description line as a summary'
-      When run runbook basic.md -h -lt
+  Describe 'summaries in -ls / -lt'
+    It 'shows the first non-blank description line of each task with -lt'
+      When run runbook basic.md -lt
       The status should be success
       The output should match pattern '*Task/args*Print the runbook arguments.*'
       The output should not include 'They are'
       The lines of output should eq 3
     End
 
-    It 'shows summaries in the combined listing'
-      When run runbook basic.md -ls -lt -h
+    It 'has no trailing spaces for tasks without a description'
+      When run runbook basic.md -lt
+      The line 3 of output should eq 'Task/hello'
+    End
+
+    It 'does not show step summaries with -ls alone'
+      When run runbook basic.md -ls -lt
       The status should be success
-      The line 1 of output should match pattern '*1*Step/zeta*'
+      The line 2 of output should match pattern '*2*Step/alpha'
       The output should match pattern '*-*Task/args*Print the runbook arguments.*'
       The lines of output should eq 5
     End
 
-    It 'does not show summaries without -h'
-      When run runbook basic.md -lt
-      The output should not include 'Print the runbook arguments.'
+    It 'shows step summaries with -h -ls'
+      When run runbook basic.md -ls -lt -h
+      The status should be success
+      The line 1 of output should match pattern '*1*Step/zeta'
+      The line 2 of output should match pattern '*2*Step/alpha*The alpha step.'
+      The output should match pattern '*-*Task/args*Print the runbook arguments.*'
+      The lines of output should eq 5
     End
   End
 End

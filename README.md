@@ -183,11 +183,12 @@ You can list the steps of your runbook by running it with the `-ls` option:
     2  Step/2
     3  Step/last
 
-To list the tasks, run it with the `-lt` option:
+To list the tasks, with a summary of each (see [Describing Steps and
+Tasks](#describing-steps-and-tasks)), run it with the `-lt` option:
 
     $ ./runbooks/Example.md -lt
-    Task/Check-Service-Status
-    Task/Page-2nd-level-on-call
+    Task/Check-Service-Status    Check whether the service is up.
+    Task/Page-2nd-level-on-call  Page the 2nd level on-call engineer for help.
 
 Run all the steps:
 
@@ -261,12 +262,8 @@ see its description:
 
             Run this after the maintenance, or any time you suspect an outage.
 
-Use `-h` with `-ls` and / or `-lt` to also list the first line of each
-description:
-
-    $ ./runbooks/Example.md -h -lt
-    Task/Check-Service-Status    Check whether the service is up.
-    Task/Page-2nd-level-on-call  Page the 2nd level on-call engineer for help.
+The first line of a task's description is shown as its summary when listing
+tasks with `-lt`. To also show the summaries of steps, use `-h` with `-ls`.
 
 Note that a function declared on the opening fence line (e.g., <code>```bash Step</code>)
 has no description, since there's no line above it within its code block.
