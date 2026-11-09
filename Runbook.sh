@@ -365,6 +365,9 @@ Options:
                       Unless a step is also specified with '-s', no steps will be run when
                       this option is used. This option can be specified multiple times.
 
+    -n, --dry-run     Show the steps and tasks that would be run, in order, without
+                      running them. (Steps and tasks they run with rb-run aren't shown.)
+
     -i, --interactive Confirm before running each selected step or task.
 
     -y, --yes         Say yes to all task confirmation prompts.
@@ -423,6 +426,7 @@ rb-parse-options () {   # "$@"
               fi
               ;;
 
+          -n|--dry-run) RB_CLI_OPTS[dry-run]=x ;;
           -i|--interactive) RB_CLI_OPTS[interactive]=x ;;
           -y|--yes) RB_CLI_OPTS[yes]=x ;;
 
@@ -812,6 +816,11 @@ rb-main () {
 
     local step_ranges=${RB_CLI_OPTS[step-list]:-}
     [[ ! $step_ranges ]] || _rb-compute-steps-range "$step_ranges" ${#RB_STEPS[*]}
+
+    if [[ ${RB_CLI_OPTS[dry-run]:-} ]]; then
+        _rb-run-list | awk -F'\t' '$3 == "x" { printf "%3s  %s\n", $1, $2 }'
+        exit
+    fi
 
     # Let the runbook validate the env vars it expects before running anything.
     if declare -F rb-validate-env >/dev/null; then

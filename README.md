@@ -207,6 +207,17 @@ neither `-s` nor `-t` are specified:
 
     $ ./runbooks/Example.md Page-2nd-level-on-call
 
+To see what would be run, in order, without running anything, add the `-n`
+(dry run) option:
+
+    $ ./runbooks/Example.md -n -s 2- -t Task/Check-Service-Status
+      2  Step/2
+      3  Step/last
+      -  Task/Check-Service-Status
+
+A dry run doesn't show the steps and tasks that would be run by other steps
+or tasks with `rb-run`.
+
 To confirm before running each selected step or task, use the `-i` option.
 For each one, you can answer **Y**es to run it, **S**kip it, or **Q**uit the
 runbook:
